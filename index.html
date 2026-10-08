@@ -1,1 +1,180 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestione Spese Stipendio</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Firebase SDK (Versioni compatibili per salvataggio online) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Gestione Spese Stipendio</h1>
+        
+        <!-- Navigazione Schede -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('home')">Home & Inserimento</button>
+            <button class="tab-btn" onclick="switchTab('stats')">Statistiche & Filtri</button>
+        </div>
 
+        <!-- SCHEDA 1: HOME -->
+        <div id="tab-home" class="tab-content active">
+            <!-- Pannello Configurazione Stipendio e Saldo -->
+            <div class="card summary-card">
+                <h2>Il tuo Ciclo Stipendio (Dal 10 al 10)</h2>
+                <div class="setting-group">
+                    <label for="stipendioImporto">Importo Stipendio (€):</label>
+                    <input type="number" id="stipendioImporto" placeholder="Es. 1500" step="0.01" onchange="salvaImpostazioniStipendio()">
+                </div>
+                <div class="setting-group">
+                    <label for="prossimoStipendioData">Data Prossimo Stipendio:</label>
+                    <input type="date" id="prossimoStipendioData" onchange="salvaImpostazioniStipendio()">
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="stat-label">Giorni Mancanti:</span>
+                        <span id="giorniMancanti" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Residuo Stipendio:</span>
+                        <span id="residuoStipendio" class="stat-value">0.00 €</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Budget Giornaliero:</span>
+                        <span id="budgetGiornaliero" class="stat-value">0.00 €</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Speso Oggi:</span>
+                        <span id="spesoOggi" class="stat-value">0.00 €</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inserimento Nuova Spesa -->
+            <div class="card">
+                <h2>Aggiungi Nuova Spesa</h2>
+                <form id="formSpesa" onsubmit="aggiungiSpesa(event)">
+                    <div class="form-group">
+                        <label for="importoSpesa">Importo (€):</label>
+                        <input type="number" id="importoSpesa" step="0.01" placeholder="0.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="categoriaSpesa">Categoria:</label>
+                        <div class="category-wrapper">
+                            <select id="categoriaSpesa" required></select>
+                            <button type="button" class="btn-danger" onclick="eliminaCategoriaSelezionata()" title="Elimina categoria scelta">Elimina Categoria</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="nuovaCategoriaInput">Oppure Aggiungi Nuova Categoria:</label>
+                        <div class="category-wrapper">
+                            <input type="text" id="nuovaCategoriaInput" placeholder="Nome nuova categoria">
+                            <button type="button" class="btn-success" onclick="aggiungiCategoria()">Aggiungi</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="dataSpesa">Data Spesa:</label>
+                        <input type="date" id="dataSpesa" required>
+                    </div>
+                    <button type="submit" class="btn-primary full-width">Salva Spesa</button>
+                </form>
+            </div>
+
+            <!-- Elenco Spese di Oggi -->
+            <div class="card">
+                <h2>Spese di Oggi</h2>
+                <div class="table-responsive">
+                    <table id="tabellaSpeseOggi">
+                        <thead>
+                            <tr>
+                                <th>Ora/Data</th>
+                                <th>Categoria</th>
+                                <th>Importo</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Popolato via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCHEDA 2: STATISTICHE E FILTRI -->
+        <div id="tab-stats" class="tab-content">
+            <div class="card">
+                <h2>Filtri di Ricerca Avanzata</h2>
+                <div class="filters-grid">
+                    <div class="form-group">
+                        <label for="filtroTipoPeriodo">Periodo Rapido:</label>
+                        <select id="filtroTipoPeriodo" onchange="applicaFiltri()">
+                            <option value="tutti">Tutti i periodi</option>
+                            <option value="oggi">Oggi</option>
+                            <option value="settimana">Questa Settimana</option>
+                            <option value="mese">Questo Mese (10-10)</option>
+                            <option value="anno">Quest'Anno</option>
+                            <option value="personalizzato">Periodo Personalizzato</option>
+                        </select>
+                    </div>
+                    <div class="form-group date-range" id="boxDatePersonalizzate" style="display:none;">
+                        <label>Da:</label>
+                        <input type="date" id="filtroDataDa" onchange="applicaFiltri()">
+                        <label>A:</label>
+                        <input type="date" id="filtroDataA" onchange="applicaFiltri()">
+                    </div>
+                    <div class="form-group">
+                        <label for="filtroCategoria">Categoria:</label>
+                        <select id="filtroCategoria" onchange="applicaFiltri()">
+                            <option value="">Tutte le categorie</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="filtroTesto">Cerca per Testo/Importo:</label>
+                        <input type="text" id="filtroTesto" placeholder="Es. 15 o supermercato" oninput="applicaFiltri()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Risultati Filtri -->
+            <div class="card">
+                <h2>Risultati Filtrati</h2>
+                <div class="results-summary">
+                    <p><strong>Totale Spese Filtrate:</strong> <span id="totaleFiltrato">0.00 €</span></p>
+                </div>
+                
+                <h3>Totale per Categoria (nel filtro)</h3>
+                <div id="totalePerCategoriaContainer" class="category-totals-box">
+                    <!-- Popolato via JS -->
+                </div>
+
+                <h3>Elenco Spese</h3>
+                <div class="table-responsive">
+                    <table id="tabellaSpeseFiltrate">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Categoria</th>
+                                <th>Importo</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Popolato via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            Created by STECCA
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
