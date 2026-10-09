@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestione Spese Stipendio</title>
+    <title>Spese Mensili</title>
     <link rel="stylesheet" href="style.css">
     <!-- Firebase App (compat) e Firestore -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -11,7 +11,7 @@
 </head>
 <body>
     <header>
-        <h1>Gestione Spese Stipendio</h1>
+        <h1>Spese Mensili</h1>
         <nav>
             <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
             <button class="tab-btn" onclick="switchTab('stats')">Statistiche</button>
@@ -23,12 +23,12 @@
         <section id="dashboard-tab" class="tab-content active">
             <!-- Pannello Stipendio e Info Periodo -->
             <div class="card summary-card">
-                <h2>Riepilogo Periodo (10 - 10)</h2>
+                <h2>Riepilogo Periodo</h2>
                 <div class="info-grid">
                     <div>
                         <p class="label">Stipendio Iniziale:</p>
                         <p class="value" id="disp-stipendio">€ 0.00</p>
-                        <button class="btn-small" onclick="apriModaleStipendio()">Modifica</button>
+                        <button class="btn-small" style="background-color: #0000ff;" onclick="apriModaleStipendio()">Modifica</button>
                     </div>
                     <div>
                         <p class="label">Residuo Disponibile:</p>
