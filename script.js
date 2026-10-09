@@ -270,7 +270,11 @@ function aggiornaSelectCategorie() {
             <button class="btn-danger" onclick="eliminaCategoria('${cat}')">Elimina</button>
         </li>`;
     });
-    document.getElementById('lista-categorie-modale').innerHTML = htmlModale;
+    
+    // Aggiunto un margine superiore (margin-top: 15px) per distanziare la lista dal pulsante
+    let listaModale = document.getElementById('lista-categorie-modale');
+    listaModale.style.marginTop = "15px";
+    listaModale.innerHTML = htmlModale;
 }
 
 function apriModaleCategoria() {
