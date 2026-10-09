@@ -125,8 +125,10 @@ function aggiornaInterfaccia() {
 
     // Se l'utente ha modificato la data nel campo input, sincronizziamo la variabile
     let inputDataVal = document.getElementById('input-data-prossimo-stipendio').value;
-    if (inputDataVal && inputDataVal !== dataProssimoStipendio) {
+    if (inputDataVal) {
         dataProssimoStipendio = inputDataVal;
+    } else if (dataProssimoStipendio) {
+        document.getElementById('input-data-prossimo-stipendio').value = dataProssimoStipendio;
     }
 
     let dataStipendioObj = dataProssimoStipendio ? new Date(dataProssimoStipendio) : new Date();
