@@ -53,7 +53,7 @@ function caricaDatiDaFirebase() {
             if(data.dataProssimoStipendio) dataProssimoStipendio = data.dataProssimoStipendio;
         }
         
-        // Se non è stata salvata una data personalizzata, calcola una data di default (es. il 10 del mese corrente o successivo)
+        // Se non è stata salvata una data personalizzata, calcola una data di default (es. il 10 del mese)
         if (!dataProssimoStipendio) {
             dataProssimoStipendio = calcolaDataStipendioDefault();
         }
@@ -123,10 +123,15 @@ function caricaSpese() {
 function aggiornaInterfaccia() {
     document.getElementById('disp-stipendio').innerText = `€ ${stipendioMese.toFixed(2)}`;
 
-    // Calcolo periodo approssimativo per le spese del mese (ad esempio basato sulla data stipendio scelta)
+    // Se l'utente ha modificato la data nel campo input, sincronizziamo la variabile
+    let inputDataVal = document.getElementById('input-data-prossimo-stipendio').value;
+    if (inputDataVal && inputDataVal !== dataProssimoStipendio) {
+        dataProssimoStipendio = inputDataVal;
+    }
+
     let dataStipendioObj = dataProssimoStipendio ? new Date(dataProssimoStipendio) : new Date();
     
-    // Periodo di riferimento: un mese prima della data del prossimo stipendio fino alla data del prossimo stipendio
+    // Periodo di riferimento: un mese prima della data del prossimo stipendio fino alla data scelta
     let finePeriodo = new Date(dataStipendioObj);
     let inizioPeriodo = new Date(dataStipendioObj);
     inizioPeriodo.setMonth(inizioPeriodo.getMonth() - 1);
