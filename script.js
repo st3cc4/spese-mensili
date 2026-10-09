@@ -102,7 +102,7 @@ function aggiornaDataProssimoStipendio() {
     let inputVal = document.getElementById('input-data-prossimo-stipendio').value;
     if (inputVal) {
         dataProssimoStipendio = inputVal;
-        salvaImpostazioniFirebase();
+        salvaImpostazioniFirebase(); // Salvataggio corretto della data su Firebase
         aggiornaInterfaccia();
     }
 }
@@ -238,7 +238,7 @@ function salvaStipendio() {
     }
 
     stipendioMese = nuovoValore;
-    salvaImpostazioniFirebase();
+    salvaImpostazioniFirebase(); // Salvataggio corretto dello stipendio su Firebase
     chiudiModaleStipendio();
     aggiornaInterfaccia();
 }
