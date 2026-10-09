@@ -271,7 +271,6 @@ function aggiornaSelectCategorie() {
         </li>`;
     });
     
-    // Aggiunto un margine superiore (margin-top: 15px) per distanziare la lista dal pulsante
     let listaModale = document.getElementById('lista-categorie-modale');
     listaModale.style.marginTop = "15px";
     listaModale.innerHTML = htmlModale;
@@ -284,13 +283,21 @@ function chiudiModaleCategoria() {
     document.getElementById('modale-categoria').style.display = 'none';
 }
 function aggiungiCategoria() {
-    let nomeCat = document.getElementById('nuova-cat-nome').value.trim();
-    if(nomeCat && !categorie.includes(nomeCat)) {
-        categorie.push(nomeCat);
-        document.getElementById('nuova-cat-nome').value = '';
-        salvaImpostazioniFirebase();
-        aggiornaSelectCategorie();
+    let inputVal = document.getElementById('nuova-cat-nome').value.trim();
+    if (!inputVal) return;
+
+    // Capitalizza la prima lettera e mette il resto in minuscolo
+    let nomeCat = inputVal.charAt(0).toUpperCase() + inputVal.slice(1).toLowerCase();
+
+    if(categorie.includes(nomeCat)) {
+        alert("Questa categoria esiste già!");
+        return;
     }
+
+    categorie.push(nomeCat);
+    document.getElementById('nuova-cat-nome').value = '';
+    salvaImpostazioniFirebase();
+    aggiornaSelectCategorie();
 }
 function eliminaCategoria(cat) {
     if(categorie.length <= 1) {
