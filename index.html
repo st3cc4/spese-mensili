@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestione Spese Stipendio</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Firebase App (compat) e Firestore -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Gestione Spese Stipendio</h1>
+        <nav>
+            <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="tab-btn" onclick="switchTab('stats')">Statistiche</button>
+        </nav>
+    </header>
+
+    <main>
+        <!-- SEZIONE DASHBOARD -->
+        <section id="dashboard-tab" class="tab-content active">
+            <!-- Pannello Stipendio e Info Periodo -->
+            <div class="card summary-card">
+                <h2>Riepilogo Periodo (10 - 10)</h2>
+                <div class="info-grid">
+                    <div>
+                        <p class="label">Stipendio Iniziale:</p>
+                        <p class="value" id="disp-stipendio">€ 0.00</p>
+                        <button class="btn-small" onclick="apriModaleStipendio()">Modifica</button>
+                    </div>
+                    <div>
+                        <p class="label">Residuo Disponibile:</p>
+                        <p class="value" id="disp-residuo">€ 0.00</p>
+                    </div>
+                    <div>
+                        <p class="label">Giorni al Prossimo Stipendio:</p>
+                        <p class="value" id="disp-giorni">0</p>
+                    </div>
+                    <div>
+                        <p class="label">Budget Giornaliero:</p>
+                        <p class="value" id="disp-budget-giorno">€ 0.00</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inserimento Nuova Spesa -->
+            <div class="card">
+                <h2>Aggiungi Nuova Spesa</h2>
+                <form id="form-spesa" onsubmit="aggiungiSpesa(event)">
+                    <div class="form-group">
+                        <label for="importo">Importo (€):</label>
+                        <input type="number" step="0.01" id="importo" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="categoria">Categoria:</label>
+                        <div class="cat-wrapper">
+                            <select id="categoria" required></select>
+                            <button type="button" class="btn-secondary" onclick="apriModaleCategoria()">Gestisci Categorie</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="data-spesa">Data:</label>
+                        <input type="date" id="data-spesa" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Salva Spesa</button>
+                </form>
+            </div>
+
+            <!-- Riepilogo Giornaliero -->
+            <div class="card">
+                <h2>Spese di Oggi</h2>
+                <div class="today-summary">
+                    <p>Totale speso oggi: <strong id="totale-oggi">€ 0.00</strong></p>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ora/Data</th>
+                                <th>Categoria</th>
+                                <th>Importo</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-spese-oggi">
+                            <!-- Inserito via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEZIONE STATISTICHE -->
+        <section id="stats-tab" class="tab-content">
+            <div class="card">
+                <h2>Filtri di Ricerca e Statistiche</h2>
+                <div class="filters-grid">
+                    <div class="form-group">
+                        <label for="filtro-tipo">Filtra per periodo:</label>
+                        <select id="filtro-tipo" onchange="cambiaTipoFiltro()">
+                            <option value="tutti">Tutti i periodi</option>
+                            <option value="giorno">Giorno specifico</option>
+                            <option value="settimana">Settimana</option>
+                            <option value="mese">Mese</option>
+                            <option value="anno">Anno</option>
+                            <option value="periodo">Intervallo personalizzato</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="box-giorno" style="display:none;">
+                        <label>Seleziona Giorno:</label>
+                        <input type="date" id="filtro-data-singola" onchange="applicaFiltri()">
+                    </div>
+
+                    <div class="form-group" id="box-intervallo" style="display:none;">
+                        <label>Da:</label>
+                        <input type="date" id="filtro-data-da" onchange="applicaFiltri()">
+                        <label>A:</label>
+                        <input type="date" id="filtro-data-a" onchange="applicaFiltri()">
+                    </div>
+
+                    <div class="form-group" id="box-mese" style="display:none;">
+                        <label>Seleziona Mese:</label>
+                        <input type="month" id="filtro-mese-val" onchange="applicaFiltri()">
+                    </div>
+
+                    <div class="form-group" id="box-anno" style="display:none;">
+                        <label>Seleziona Anno:</label>
+                        <input type="number" id="filtro-anno-val" placeholder="2026" onchange="applicaFiltri()">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="filtro-categoria">Categoria:</label>
+                        <select id="filtro-categoria" onchange="applicaFiltri()">
+                            <option value="">Tutte le categorie</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="filtro-ricerca-testo">Cerca per importo / testo:</label>
+                        <input type="text" id="filtro-ricerca-testo" placeholder="Es. 15.50..." oninput="applicaFiltri()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Risultati e Totali Filtrati -->
+            <div class="card">
+                <h2>Risultati Filtrati</h2>
+                <div class="stats-summary-box">
+                    <p>Totale Spese Filtrate: <strong id="stat-totale-filtrato">€ 0.00</strong></p>
+                </div>
+                
+                <h3>Totale per Categoria (Filtrato)</h3>
+                <div id="stat-per-categoria" class="cat-totals-grid">
+                    <!-- Generato via JS -->
+                </div>
+
+                <h3>Elenco Spese</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Categoria</th>
+                                <th>Importo</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-spese-filtrate">
+                            <!-- Generato via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODALE IMPOSTA STIPENDIO -->
+    <div id="modale-stipendio" class="modal">
+        <div class="modal-content">
+            <h3>Imposta Stipendio</h3>
+            <p>Inserisci l'importo dello stipendio mensile:</p>
+            <input type="number" step="0.01" id="input-nuovo-stipendio" placeholder="1500.00">
+            <div class="modal-buttons">
+                <button class="btn-primary" onclick="salvaStipendio()">Salva</button>
+                <button class="btn-secondary" onclick="chiudiModaleStipendio()">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALE GESTIONE CATEGORIE -->
+    <div id="modale-categoria" class="modal">
+        <div class="modal-content">
+            <h3>Gestione Categorie</h3>
+            <div class="form-group" style="margin-top: 15px;">
+                <input type="text" id="nuova-cat-nome" placeholder="Nome nuova categoria...">
+                <button class="btn-primary" style="margin-top: 10px;" onclick="aggiungiCategoria()">Aggiungi Categoria</button>
+            </div>
+            <h4>Categorie Esistenti:</h4>
+            <ul id="lista-categorie-modale">
+                <!-- Generato via JS -->
+            </ul>
+            <div class="modal-buttons" style="margin-top: 15px;">
+                <button class="btn-secondary" onclick="chiudiModaleCategoria()">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Created by STECCA</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
