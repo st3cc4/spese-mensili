@@ -1,330 +1,273 @@
-// --- CONFIGURAZIONE FIREBASE ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
 const firebaseConfig = {
-    apiKey: "AIzaSyAXvgC2P16ScZb5SCynIY2LF70oqbGbSRWo",
+    apiKey: "AIzaSyD-TUA_MESS_PLACEHOLDER_FIX",
     authDomain: "spese-mensili-58c04.firebaseapp.com",
-    databaseURL: "https://spese-mensili-58c04-default-rtdb.europe-west1.firebasedatabase.app",
     projectId: "spese-mensili-58c04",
-    storageBucket: "spese-mensili-58c04.firebasestorage.app",
-    messagingSenderId: "83551600697",
-    appId: "1:83551600697:web:7a74ff965ab4cd59d88adc"
+    storageBucket: "spese-mensili-58c04.appspot.com",
+    messagingSenderId: "33333333333",
+    appId: "1:33333333333:web:abcdef"
 };
 
-// Inizializzazione Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-// Variabili globali per i dati locali
-let spese = [];
-let categorie = ["Alimentari", "Casa", "Svago", "Trasporti", "Bollette", "Altro"];
-let stipendioMese = 1500.00; // Valore di default modificabile
+// Riferimenti elementi UI
+const initialBudgetEl = document.getElementById('initial-budget');
+const totalSpentEl = document.getElementById('total-spent');
+const remainingBudgetEl = document.getElementById('remaining-budget');
+const daysRemainingEl = document.getElementById('days-remaining');
+const dailyBudgetEl = document.getElementById('daily-budget');
+const btnEditBudget = document.getElementById('btn-edit-budget');
 
-// Al caricamento della pagina
-window.onload = function() {
-    // Imposta la data odierna nel campo input spesa
-    const oggi = new Date().toISOString().split('T')[0];
-    document.getElementById('data-spesa').value = oggi;
-    
-    caricaDatiDaFirebase();
-};
+const expenseForm = document.getElementById('expense-form');
+const expenseAmountInput = document.getElementById('expense-amount');
+const expenseCategorySelect = document.getElementById('expense-category');
+const expenseDateInput = document.getElementById('expense-date');
+const expenseListEl = document.getElementById('expense-list');
 
-// --- GESTIONE SCHEDE (TABS) ---
-function switchTab(tabId) {
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    
-    if(tabId === 'dashboard') {
-        document.getElementById('dashboard-tab').classList.add('active');
-        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+const newCategoryNameInput = document.getElementById('new-category-name');
+const btnManageCat = document.getElementById('btn-manage-cat');
+const categoryListEl = document.getElementById('category-list');
+
+const statFilterSelect = document.getElementById('stat-filter');
+const dateRangeInputs = document.getElementById('date-range-inputs');
+const statStartDate = document.getElementById('stat-start-date');
+const statEndDate = document.getElementById('stat-end-date');
+const filteredTotalEl = document.getElementById('filtered-total');
+const filteredCategoryBreakdown = document.getElementById('filtered-category-breakdown');
+
+let categories = ["Alimentari", "Svago", "Bollette", "Trasporti"];
+let expenses = [];
+let initialBudget = 1000;
+
+// Imposta data odierna come default nel form spesa
+expenseDateInput.value = new Date().toISOString().split('T')[0];
+
+// Calcolo ciclo stipendio (dal 10 del mese precedente al 10 corrente)
+function getCurrentSalaryPeriod() {
+    const now = new Date();
+    let year = now.getFullYear();
+    let month = now.getMonth();
+    let startDate, endDate;
+
+    if (now.getDate() < 10) {
+        startDate = new Date(year, month - 1, 10);
+        endDate = new Date(year, month, 10);
     } else {
-        document.getElementById('stats-tab').classList.add('active');
-        document.querySelectorAll('.tab-btn')[1].classList.add('active');
-        applicaFiltri(); // Aggiorna le statistiche all'apertura
+        startDate = new Date(year, month, 10);
+        endDate = new Date(year, month + 1, 10);
     }
+    return { startDate, endDate };
 }
 
-// --- LOGICA DEL CICLO STIPENDIO (Dal 10 al 10) ---
-function calcolaPeriodoStipendioCorrente() {
-    const adesso = new Date();
-    let anno = adesso.getFullYear();
-    let mese = adesso.getMonth(); // 0-11
-    let giorno = adesso.getDate();
-
-    let inizioPeriodo, finePeriodo;
-
-    if (giorno >= 10) {
-        // Dal 10 di questo mese al 10 del mese prossimo
-        inizioPeriodo = new Date(anno, mese, 10);
-        finePeriodo = new Date(anno, mese + 1, 10);
-    } else {
-        // Dal 10 del mese scorso al 10 di questo mese
-        inizioPeriodo = new Date(anno, mese - 1, 10);
-        finePeriodo = new Date(anno, mese, 10);
-    }
-
-    return { inizio: inizioPeriodo, fine: finePeriodo };
+function calculateDays() {
+    const now = new Date();
+    const { endDate } = getCurrentSalaryPeriod();
+    const diffTime = endDate - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
 }
 
-// --- COMUNICAZIONE CON FIREBASE ---
-function caricaDatiDaFirebase() {
-    db.collection("config").doc("impostazioni").get().then((doc) => {
-        if (doc.exists) {
-            const data = doc.data();
-            if(data.stipendio) stipendioMese = data.stipendio;
-            if(data.categorie) categorie = data.categorie;
-        }
-        aggiornaSelectCategorie();
-        caricaSpese();
-    }).catch((error) => {
-        console.error("Errore caricamento impostazioni: ", error);
-        aggiornaSelectCategorie();
-        caricaSpese();
-    });
-}
-
-function salvaImpostazioniFirebase() {
-    db.collection("config").doc("impostazioni").set({
-        stipendio: stipendioMese,
-        categorie: categorie
-    }).catch((error) => {
-        console.error("Errore salvataggio impostazioni: ", error);
-    });
-}
-
-function caricaSpese() {
-    db.collection("spese").orderBy("data", "desc").get().then((querySnapshot) => {
-        spese = [];
-        querySnapshot.forEach((doc) => {
-            spese.push({ id: doc.id, ...doc.data() });
-        });
-        aggiornaInterfaccia();
-    }).catch((error) => {
-        console.error("Errore caricamento spese: ", error);
-    });
-}
-
-// --- AGGIORNA INTERFACCIA DASHBOARD ---
-function aggiornaInterfaccia() {
-    document.getElementById('disp-stipendio').innerText = `€ ${stipendioMese.toFixed(2)}`;
-
-    const periodo = calcolaPeriodoStipendioCorrente();
-    
-    let spesePeriodo = spese.filter(s => {
-        let d = new Date(s.data);
-        return d >= periodo.inizio && d < periodo.fine;
-    });
-
-    let totaleSpesoPeriodo = spesePeriodo.reduce((sum, s) => sum + parseFloat(s.importo), 0);
-    let residuo = stipendioMese - totaleSpesoPeriodo;
-    document.getElementById('disp-residuo').innerText = `€ ${residuo.toFixed(2)}`;
-
-    let oggi = new Date();
-    oggi.setHours(0,0,0,0);
-    let diffTempo = periodo.fine - oggi;
-    let giorniMancanti = Math.ceil(diffTempo / (1000 * 60 * 60 * 24));
-    if (giorniMancanti < 1) giorniMancanti = 1;
-    document.getElementById('disp-giorni').innerText = giorniMancanti;
-
-    let budgetGiornaliero = residuo / giorniMancanti;
-    document.getElementById('disp-budget-giorno').innerText = `€ ${budgetGiornaliero > 0 ? budgetGiornaliero.toFixed(2) : '0.00'}`;
-
-    let dataOggiStr = new Date().toISOString().split('T')[0];
-    let speseOggi = spese.filter(s => s.data === dataOggiStr);
-    let totaleOggi = speseOggi.reduce((sum, s) => sum + parseFloat(s.importo), 0);
-    document.getElementById('totale-oggi').innerText = `€ ${totaleOggi.toFixed(2)}`;
-
-    let htmlOggi = '';
-    speseOggi.forEach(s => {
-        htmlOggi += `<tr>
-            <td>${s.data}</td>
-            <td>${s.categoria}</td>
-            <td>€ ${parseFloat(s.importo).toFixed(2)}</td>
-            <td><button class="btn-danger" onclick="eliminaSpesa('${s.id}')">Elimina</button></td>
-        </tr>`;
-    });
-    document.getElementById('lista-spese-oggi').innerHTML = htmlOggi || '<tr><td colspan="4" style="text-align:center;">Nessuna spesa registrata oggi.</td></tr>';
-}
-
-// --- GESTIONE SPESE ---
-function aggiungiSpesa(event) {
-    event.preventDefault();
-    let importo = parseFloat(document.getElementById('importo').value);
-    let categoria = document.getElementById('categoria').value;
-    let data = document.getElementById('data-spesa').value;
-
-    let nuovaSpesa = { importo, categoria, data, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
-
-    db.collection("spese").add(nuovaSpesa).then(() => {
-        document.getElementById('form-spesa').reset();
-        const oggi = new Date().toISOString().split('T')[0];
-        document.getElementById('data-spesa').value = oggi;
-        caricaSpese();
-    }).catch((error) => {
-        alert("Errore durante il salvataggio: " + error);
-    });
-}
-
-function eliminaSpesa(id) {
-    if(confirm("Sei sicuro di voler eliminare questa spesa?")) {
-        db.collection("spese").doc(id).delete().then(() => {
-            caricaSpese();
-        }).catch((error) => {
-            alert("Errore durante l'eliminazione: " + error);
-        });
-    }
-}
-
-// --- MODALE STIPENDIO ---
-function apriModaleStipendio() {
-    document.getElementById('input-nuovo-stipendio').value = stipendioMese;
-    document.getElementById('modale-stipendio').style.display = 'flex';
-}
-function chiudiModaleStipendio() {
-    document.getElementById('modale-stipendio').style.display = 'none';
-}
-function salvaStipendio() {
-    let nuovoValore = parseFloat(document.getElementById('input-nuovo-stipendio').value);
-    if(!isNaN(nuovoValore)) {
-        stipendioMese = nuovoValore;
-        salvaImpostazioniFirebase();
-        chiudiModaleStipendio();
-        aggiornaInterfaccia();
-    }
-}
-
-// --- GESTIONE CATEGORIE ---
-function aggiornaSelectCategorie() {
-    let selectSpesa = document.getElementById('categoria');
-    let selectFiltro = document.getElementById('filtro-categoria');
-    
-    let htmlSelect = '';
-    let htmlFiltro = '<option value="">Tutte le categorie</option>';
-    
-    categorie.forEach(cat => {
-        htmlSelect += `<option value="${cat}">${cat}</option>`;
-        htmlFiltro += `<option value="${cat}">${cat}</option>`;
-    });
-    
-    selectSpesa.innerHTML = htmlSelect;
-    selectFiltro.innerHTML = htmlFiltro;
-
-    let htmlModale = '';
-    categorie.forEach(cat => {
-        htmlModale += `<li style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span>${cat}</span>
-            <button class="btn-danger" onclick="eliminaCategoria('${cat}')">Elimina</button>
-        </li>`;
-    });
-    document.getElementById('lista-categorie-modale').innerHTML = htmlModale;
-}
-
-function apriModaleCategoria() {
-    document.getElementById('modale-categoria').style.display = 'flex';
-}
-function chiudiModaleCategoria() {
-    document.getElementById('modale-categoria').style.display = 'none';
-}
-function aggiungiCategoria() {
-    let nomeCat = document.getElementById('nuova-cat-nome').value.trim();
-    if(nomeCat && !categorie.includes(nomeCat)) {
-        categorie.push(nomeCat);
-        document.getElementById('nuova-cat-nome').value = '';
-        salvaImpostazioniFirebase();
-        aggiornaSelectCategorie();
-    }
-}
-function eliminaCategoria(cat) {
-    if(categorie.length <= 1) {
-        alert("Devi mantenere almeno una categoria.");
-        return;
-    }
-    if(confirm(`Vuoi davvero eliminare la categoria "${cat}"?`)) {
-        categorie = categorie.filter(c => c !== cat);
-        salvaImpostazioniFirebase();
-        aggiornaSelectCategorie();
-    }
-}
-
-// --- STATISTICHE E FILTRI AVANZATI ---
-function cambiaTipoFiltro() {
-    let tipo = document.getElementById('filtro-tipo').value;
-    document.getElementById('box-giorno').style.display = tipo === 'giorno' ? 'block' : 'none';
-    document.getElementById('box-intervallo').style.display = tipo === 'periodo' ? 'block' : 'none';
-    document.getElementById('box-mese').style.display = tipo === 'mese' ? 'block' : 'none';
-    document.getElementById('box-anno').style.display = tipo === 'anno' ? 'block' : 'none';
-    applicaFiltri();
-}
-
-function applicaFiltri() {
-    let tipoFiltro = document.getElementById('filtro-tipo').value;
-    let catFiltro = document.getElementById('filtro-categoria').value;
-    let testoRicerca = document.getElementById('filtro-ricerca-testo').value.toLowerCase();
-
-    let speseFiltrate = spese.filter(s => {
-        let matchPeriodo = true;
-        let dataSpesa = new Date(s.data);
-
-        if (tipoFiltro === 'giorno') {
-            let valGiorno = document.getElementById('filtro-data-singola').value;
-            if (valGiorno) matchPeriodo = (s.data === valGiorno);
-            else matchPeriodo = false;
-        } else if (tipoFiltro === 'settimana') {
-            let oggi = new Date();
-            let inizioSettimana = new Date(oggi.setDate(oggi.getDate() - oggi.getDay() + 1));
-            inizioSettimana.setHours(0,0,0,0);
-            matchPeriodo = (dataSpesa >= inizioSettimana);
-        } else if (tipoFiltro === 'mese') {
-            let valMese = document.getElementById('filtro-mese-val').value;
-            if (valMese) {
-                let [anno, mese] = valMese.split('-');
-                matchPeriodo = (dataSpesa.getFullYear() == anno && (dataSpesa.getMonth() + 1) == mese);
-            } else {
-                matchPeriodo = false;
-            }
-        } else if (tipoFiltro === 'anno') {
-            let valAnno = document.getElementById('filtro-anno-val').value;
-            if (valAnno) {
-                matchPeriodo = (dataSpesa.getFullYear() == valAnno);
-            } else {
-                matchPeriodo = false;
-            }
-        } else if (tipoFiltro === 'periodo') {
-            let da = document.getElementById('filtro-data-da').value;
-            let a = document.getElementById('filtro-data-a').value;
-            if (da && a) {
-                matchPeriodo = (s.data >= da && s.data <= a);
-            } else {
-                matchPeriodo = false;
-            }
+async function loadData() {
+    try {
+        // Carica budget
+        const budgetDoc = await getDoc(doc(db, "settings", "budget"));
+        if (budgetDoc.exists()) {
+            initialBudget = budgetDoc.data().amount || 1000;
         }
 
-        let matchCategoria = catFiltro ? (s.categoria === catFiltro) : true;
-        let matchTesto = testoRicerca ? (s.importo.toString().includes(testoRicerca) || s.categoria.toLowerCase().includes(testoRicerca) || s.data.includes(testoRicerca)) : true;
+        // Carica categorie
+        const catDoc = await getDoc(doc(db, "settings", "categories"));
+        if (catDoc.exists()) {
+            categories = catDoc.data().list || categories;
+        }
 
-        return matchPeriodo && matchCategoria && matchTesto;
-    });
+        // Carica spese
+        const querySnapshot = await getDocs(collection(db, "expenses"));
+        expenses = [];
+        querySnapshot.forEach((docSnap) => {
+            expenses.push({ id: docSnap.id, ...docSnap.data() });
+        });
 
-    let totaleFiltrato = speseFiltrate.reduce((sum, s) => sum + parseFloat(s.importo), 0);
-    document.getElementById('stat-totale-filtrato').innerText = `€ ${totaleFiltrato.toFixed(2)}`;
-
-    let catTotali = {};
-    speseFiltrate.forEach(s => {
-        catTotali[s.categoria] = (catTotali[s.categoria] || 0) + parseFloat(s.importo);
-    });
-
-    let htmlCatTotali = '';
-    for (let [cat, tot] of Object.entries(catTotali)) {
-        htmlCatTotali += `<div class="cat-total-item"><strong>${cat}:</strong> € ${tot.toFixed(2)}</div>`;
+        updateUI();
+    } catch (e) {
+        console.error("Errore nel caricamento dati: ", e);
     }
-    document.getElementById('stat-per-categoria').innerHTML = htmlCatTotali || '<p style="font-size:0.85rem; color:#666;">Nessun dato per le categorie filtrate.</p>';
-
-    let htmlTabella = '';
-    speseFiltrate.forEach(s => {
-        htmlTabella += `<tr>
-            <td>${s.data}</td>
-            <td>${s.categoria}</td>
-            <td>€ ${parseFloat(s.importo).toFixed(2)}</td>
-            <td><button class="btn-danger" onclick="eliminaSpesa('${s.id}')">Elimina</button></td>
-        </tr>`;
-    });
-    document.getElementById('lista-spese-filtrate').innerHTML = htmlTabella || '<tr><td colspan="4" style="text-align:center;">Nessuna spesa trovata con i filtri selezionati.</td></tr>';
 }
+
+function updateUI() {
+    initialBudgetEl.textContent = initialBudget.toFixed(2);
+    
+    // Calcolo spese nel periodo corrente (10 - 10)
+    const { startDate, endDate } = getCurrentSalaryPeriod();
+    let totalSpent = 0;
+
+    expenses.forEach(exp => {
+        const expDate = new Date(exp.date);
+        if (expDate >= startDate && expDate < endDate) {
+            totalSpent += parseFloat(exp.amount);
+        }
+    });
+
+    totalSpentEl.textContent = totalSpent.toFixed(2);
+    const remaining = initialBudget - totalSpent;
+    remainingBudgetEl.textContent = remaining.toFixed(2);
+
+    const days = calculateDays();
+    daysRemainingEl.textContent = days;
+
+    const daily = days > 0 ? (remaining / days) : 0;
+    dailyBudgetEl.textContent = daily.toFixed(2);
+
+    // Aggiorna select categorie
+    expenseCategorySelect.innerHTML = "";
+    categories.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        expenseCategorySelect.appendChild(opt);
+    });
+
+    // Aggiorna lista categorie gestione
+    categoryListEl.innerHTML = "";
+    categories.forEach((cat, index) => {
+        const li = document.createElement('li');
+        li.innerHTML = `${cat} <button data-index="${index}" class="btn-del-cat">Elimina</button>`;
+        categoryListEl.appendChild(li);
+    });
+
+    // Aggiorna storico spese
+    expenseListEl.innerHTML = "";
+    expenses.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
+        const li = document.createElement('li');
+        li.innerHTML = `${exp.date} - <strong>${exp.category}</strong>: ${parseFloat(exp.amount).toFixed(2)} € <button data-id="${exp.id}" class="btn-del-exp">X</button>`;
+        expenseListEl.appendChild(li);
+    });
+
+    updateStatistics();
+}
+
+// Gestione salvataggio spesa
+expenseForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newExpense = {
+        amount: parseFloat(expenseAmountInput.value),
+        category: expenseCategorySelect.value,
+        date: expenseDateInput.value
+    };
+
+    try {
+        await addDoc(collection(db, "expenses"), newExpense);
+        expenseAmountInput.value = "";
+        expenseDateInput.value = new Date().toISOString().split('T')[0];
+        loadData();
+    } catch (e) {
+        console.error("Errore salvataggio spesa: ", e);
+    }
+});
+
+// Eliminazione spesa
+expenseListEl.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('btn-del-exp')) {
+        const id = e.target.getAttribute('data-id');
+        await deleteDoc(doc(db, "expenses", id));
+        loadData();
+    }
+});
+
+// Modifica budget
+btnEditBudget.addEventListener('click', async () => {
+    const newB = prompt("Inserisci il nuovo budget iniziale:", initialBudget);
+    if (newB !== null && !isNaN(newB)) {
+        initialBudget = parseFloat(newB);
+        await setDoc(doc(db, "settings", "budget"), { amount: initialBudget });
+        updateUI();
+    }
+});
+
+// Aggiungi categoria
+btnManageCat.addEventListener('click', async () => {
+    const catName = newCategoryNameInput.value.trim();
+    if (catName && !categories.includes(catName)) {
+        categories.push(catName);
+        newCategoryNameInput.value = "";
+        await setDoc(doc(db, "settings", "categories"), { list: categories });
+        updateUI();
+    }
+});
+
+// Elimina categoria
+categoryListEl.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('btn-del-cat')) {
+        const index = e.target.getAttribute('data-index');
+        categories.splice(index, 1);
+        await setDoc(doc(db, "settings", "categories"), { list: categories });
+        updateUI();
+    }
+});
+
+// Statistiche e filtri
+statFilterSelect.addEventListener('change', (e) => {
+    if (e.target.value === 'range') {
+        dateRangeInputs.style.display = 'block';
+    } else {
+        dateRangeInputs.style.display = 'none';
+    }
+    updateStatistics();
+});
+
+[statStartDate, statEndDate].forEach(el => el.addEventListener('change', updateStatistics));
+
+function updateStatistics() {
+    const filterType = statFilterSelect.value;
+    const now = new Date();
+    let filtered = [];
+
+    expenses.forEach(exp => {
+        const expDate = new Date(exp.date);
+        let include = false;
+
+        if (filterType === 'day') {
+            if (expDate.toDateString() === now.toDateString()) include = true;
+        } else if (filterType === 'week') {
+            const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+            if (expDate >= firstDayOfWeek) include = true;
+        } else if (filterType === 'month') {
+            if (expDate.getMonth() === now.getMonth() && expDate.getFullYear() === now.getFullYear()) include = true;
+        } else if (filterType === 'year') {
+            if (expDate.getFullYear() === now.getFullYear()) include = true;
+        } else if (filterType === 'range') {
+            const start = statStartDate.value ? new Date(statStartDate.value) : null;
+            const end = statEndDate.value ? new Date(statEndDate.value) : null;
+            if (start && end && expDate >= start && expDate <= end) include = true;
+        }
+
+        if (include) filtered.push(exp);
+    });
+
+    let totalFiltered = 0;
+    let catTotals = {};
+    categories.forEach(c => catTotals[c] = 0);
+
+    filtered.forEach(exp => {
+        totalFiltered += parseFloat(exp.amount);
+        if (catTotals[exp.category] !== undefined) {
+            catTotals[exp.category] += parseFloat(exp.amount);
+        } else {
+            catTotals[exp.category] = parseFloat(exp.amount);
+        }
+    });
+
+    filteredTotalEl.textContent = totalFiltered.toFixed(2);
+    filteredCategoryBreakdown.innerHTML = "";
+    for (const [cat, sum] of Object.entries(catTotals)) {
+        const p = document.createElement('p');
+        p.textContent = `${cat}: ${sum.toFixed(2)} €`;
+        filteredCategoryBreakdown.appendChild(p);
+    }
+}
+
+// Avvio applicazione
+loadData();
