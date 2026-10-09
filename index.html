@@ -51,10 +51,18 @@
             <div class="card">
                 <h2>AGGIUNGI NUOVA SPESA</h2>
                 <form id="form-spesa" onsubmit="aggiungiSpesa(event)">
-                    <div class="form-group">
-                        <label for="importo">Importo (€):</label>
-                        <input type="number" step="0.01" id="importo" required placeholder="0.00">
+                    <!-- Riga Importo e Data affiancati -->
+                    <div class="form-row-2">
+                        <div class="form-group">
+                            <label for="importo">Importo (€):</label>
+                            <input type="number" step="0.01" id="importo" required placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label for="data-spesa">Data:</label>
+                            <input type="date" id="data-spesa" required>
+                        </div>
                     </div>
+
                     <div class="form-group">
                         <label for="categoria">Categoria:</label>
                         <div class="cat-wrapper">
@@ -62,10 +70,7 @@
                             <button type="button" class="btn-secondary" onclick="apriModaleCategoria()">Gestisci Categorie</button>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="data-spesa">Data:</label>
-                        <input type="date" id="data-spesa" required>
-                    </div>
+
                     <button type="submit" class="btn-primary" style="background-color: #00ff00; color: #000;">Salva Spesa</button>
                 </form>
             </div>
