@@ -148,6 +148,7 @@ function aggiornaInterfaccia() {
     let annoCorrente = oggi.getFullYear();
     let meseCorrente = oggi.getMonth();
 
+    // Per il calcolo del residuo e del budget usiamo giustamente le spese del mese corrente
     let spesePeriodo = spese.filter(s => {
         let d = new Date(s.data);
         return d.getFullYear() === annoCorrente && d.getMonth() === meseCorrente;
@@ -160,15 +161,14 @@ function aggiornaInterfaccia() {
     let budgetGiornaliero = residuo / giorniMancanti;
     document.getElementById('disp-budget-giorno').innerText = `€ ${budgetGiornaliero > 0 ? budgetGiornaliero.toFixed(2) : '0.00'}`;
 
-    // Calcolo totale speso oggi per il riepilogo rapido
+    // Per la tabella e il totale di oggi, filtriamo strettamente per la data odierna
     let dataOggiStr = oggi.toISOString().split('T')[0];
     let speseOggi = spese.filter(s => s.data === dataOggiStr);
     let totaleOggi = speseOggi.reduce((sum, s) => sum + parseFloat(s.importo), 0);
     document.getElementById('totale-oggi').innerText = `€ ${totaleOggi.toFixed(2)}`;
 
-    // Mostra tutte le spese del mese corrente nella dashboard (così le vedi subito)
     let htmlOggi = '';
-    spesePeriodo.forEach(s => {
+    speseOggi.forEach(s => {
         let dataFormattata = s.data.split('-').reverse().join('/');
         htmlOggi += `<tr>
             <td>${dataFormattata}</td>
@@ -177,7 +177,7 @@ function aggiornaInterfaccia() {
             <td><button class="btn-danger" onclick="eliminaSpesa('${s.id}')">Elimina</button></td>
         </tr>`;
     });
-    document.getElementById('lista-spese-oggi').innerHTML = htmlOggi || '<tr><td colspan="4" style="text-align:center;">Nessuna spesa registrata in questo periodo.</td></tr>';
+    document.getElementById('lista-spese-oggi').innerHTML = htmlOggi || '<tr><td colspan="4" style="text-align:center;">Nessuna spesa registrata oggi.</td></tr>';
 }
 
 // --- GESTIONE SPESE ---
@@ -359,7 +359,7 @@ function applicaFiltri() {
         } else if (tipoFiltro === 'anno') {
             let valAnno = document.getElementById('filtro-anno-val').value;
             if (valAnno) {
-                matchPeriodo = (dataStr.getFullYear() == valAnno); // corretto in seguito con dataSpesa
+                matchPeriodo = (dataSpesa.getFullYear() == valAnno);
             } else {
                 matchPeriodo = false;
             }
@@ -387,7 +387,7 @@ function applicaFiltri() {
         catTotali[s.categoria] = (catTotali[s.categoria] || 0) + parseFloat(s.importo);
     });
 
-    htmlCatTotali = '';
+    let htmlCatTotali = '';
     for (let [cat, tot] of Object.entries(catTotali)) {
         htmlCatTotali += `<div class="cat-total-item"><strong>${cat}:</strong> € ${tot.toFixed(2)}</div>`;
     }
