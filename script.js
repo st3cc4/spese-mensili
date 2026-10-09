@@ -17,6 +17,7 @@ const db = firebase.firestore();
 let spese = [];
 let categorie = ["Alimentari", "Casa", "Svago", "Trasporti", "Bollette", "Altro"];
 let stipendioMese = 1500.00; // Valore di default modificabile
+let dataProssimoStipendio = ""; // Data personalizzata del prossimo stipendio
 
 // Al caricamento della pagina
 window.onload = function() {
@@ -42,28 +43,6 @@ function switchTab(tabId) {
     }
 }
 
-// --- LOGICA DEL CICLO STIPENDIO (Dal 10 al 10) ---
-function calcolaPeriodoStipendioCorrente() {
-    const adesso = new Date();
-    let anno = adesso.getFullYear();
-    let mese = adesso.getMonth(); // 0-11
-    let giorno = adesso.getDate();
-
-    let inizioPeriodo, finePeriodo;
-
-    if (giorno >= 10) {
-        // Dal 10 di questo mese al 10 del mese prossimo
-        inizioPeriodo = new Date(anno, mese, 10);
-        finePeriodo = new Date(anno, mese + 1, 10);
-    } else {
-        // Dal 10 del mese scorso al 10 di questo mese
-        inizioPeriodo = new Date(anno, mese - 1, 10);
-        finePeriodo = new Date(anno, mese, 10);
-    }
-
-    return { inizio: inizioPeriodo, fine: finePeriodo };
-}
-
 // --- COMUNICAZIONE CON FIREBASE ---
 function caricaDatiDaFirebase() {
     db.collection("config").doc("impostazioni").get().then((doc) => {
@@ -71,11 +50,24 @@ function caricaDatiDaFirebase() {
             const data = doc.data();
             if(data.stipendio) stipendioMese = data.stipendio;
             if(data.categorie) categorie = data.categorie;
+            if(data.dataProssimoStipendio) dataProssimoStipendio = data.dataProssimoStipendio;
         }
+        
+        // Se non è stata salvata una data personalizzata, calcola una data di default (es. il 10 del mese corrente o successivo)
+        if (!dataProssimoStipendio) {
+            dataProssimoStipendio = calcolaDataStipendioDefault();
+        }
+        
+        document.getElementById('input-data-prossimo-stipendio').value = dataProssimoStipendio;
+
         aggiornaSelectCategorie();
         caricaSpese();
     }).catch((error) => {
         console.error("Errore caricamento impostazioni: ", error);
+        if (!dataProssimoStipendio) {
+            dataProssimoStipendio = calcolaDataStipendioDefault();
+        }
+        document.getElementById('input-data-prossimo-stipendio').value = dataProssimoStipendio;
         aggiornaSelectCategorie();
         caricaSpese();
     });
@@ -84,10 +76,35 @@ function caricaDatiDaFirebase() {
 function salvaImpostazioniFirebase() {
     db.collection("config").doc("impostazioni").set({
         stipendio: stipendioMese,
-        categorie: categorie
+        categorie: categorie,
+        dataProssimoStipendio: dataProssimoStipendio
     }).catch((error) => {
         console.error("Errore salvataggio impostazioni: ", error);
     });
+}
+
+function calcolaDataStipendioDefault() {
+    const adesso = new Date();
+    let anno = adesso.getFullYear();
+    let mese = adesso.getMonth();
+    let giorno = adesso.getDate();
+
+    let dataStip;
+    if (giorno >= 10) {
+        dataStip = new Date(anno, mese + 1, 10);
+    } else {
+        dataStip = new Date(anno, mese, 10);
+    }
+    return dataStip.toISOString().split('T')[0];
+}
+
+function aggiornaDataProssimoStipendio() {
+    let inputVal = document.getElementById('input-data-prossimo-stipendio').value;
+    if (inputVal) {
+        dataProssimoStipendio = inputVal;
+        salvaImpostazioniFirebase();
+        aggiornaInterfaccia();
+    }
 }
 
 function caricaSpese() {
@@ -106,11 +123,17 @@ function caricaSpese() {
 function aggiornaInterfaccia() {
     document.getElementById('disp-stipendio').innerText = `€ ${stipendioMese.toFixed(2)}`;
 
-    const periodo = calcolaPeriodoStipendioCorrente();
+    // Calcolo periodo approssimativo per le spese del mese (ad esempio basato sulla data stipendio scelta)
+    let dataStipendioObj = dataProssimoStipendio ? new Date(dataProssimoStipendio) : new Date();
     
+    // Periodo di riferimento: un mese prima della data del prossimo stipendio fino alla data del prossimo stipendio
+    let finePeriodo = new Date(dataStipendioObj);
+    let inizioPeriodo = new Date(dataStipendioObj);
+    inizioPeriodo.setMonth(inizioPeriodo.getMonth() - 1);
+
     let spesePeriodo = spese.filter(s => {
         let d = new Date(s.data);
-        return d >= periodo.inizio && d < periodo.fine;
+        return d >= inizioPeriodo && d < finePeriodo;
     });
 
     let totaleSpesoPeriodo = spesePeriodo.reduce((sum, s) => sum + parseFloat(s.importo), 0);
@@ -119,7 +142,8 @@ function aggiornaInterfaccia() {
 
     let oggi = new Date();
     oggi.setHours(0,0,0,0);
-    let diffTempo = periodo.fine - oggi;
+    
+    let diffTempo = dataStipendioObj - oggi;
     let giorniMancanti = Math.ceil(diffTempo / (1000 * 60 * 60 * 24));
     if (giorniMancanti < 1) giorniMancanti = 1;
     document.getElementById('disp-giorni').innerText = giorniMancanti;
