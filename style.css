@@ -138,6 +138,13 @@ main {
     font-weight: bold;
 }
 
+/* Griglia per affiancare Importo e Data */
+.form-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
 input[type="text"],
 input[type="number"],
 input[type="date"],
