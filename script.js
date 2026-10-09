@@ -121,7 +121,8 @@ function caricaSpese() {
 
 // --- AGGIORNA INTERFACCIA DASHBOARD ---
 function aggiornaInterfaccia() {
-    document.getElementById('disp-stipendio').innerText = `€ ${stipendioMese.toFixed(2)}`;
+    // Mostra l'importo dello stipendio direttamente sul pulsante blu
+    document.getElementById('btn-stipendio').innerText = `€ ${stipendioMese.toFixed(2)}`;
 
     let inputDataVal = document.getElementById('input-data-prossimo-stipendio').value;
     if (inputDataVal) {
@@ -132,8 +133,6 @@ function aggiornaInterfaccia() {
 
     let dataStipendioObj = dataProssimoStipendio ? new Date(dataProssimoStipendio) : new Date();
     
-    // Per il calcolo delle spese del periodo, consideriamo tutte le spese inserite da quando è visibile lo stipendio o semplicemente dall'inizio del mese/periodo attuale
-    // Calcoliamo i giorni restanti esattamente da OGGI fino alla data scelta
     let oggi = new Date();
     oggi.setHours(0,0,0,0);
     dataStipendioObj.setHours(0,0,0,0);
@@ -143,8 +142,6 @@ function aggiornaInterfaccia() {
     if (giorniMancanti < 1) giorniMancanti = 1;
     document.getElementById('disp-giorni').innerText = giorniMancanti;
 
-    // Calcoliamo il totale speso nel mese corrente o in generale per il residuo
-    // Qui consideriamo le spese registrate nel mese in corso
     let annoCorrente = oggi.getFullYear();
     let meseCorrente = oggi.getMonth();
 
@@ -208,20 +205,33 @@ function eliminaSpesa(id) {
 
 // --- MODALE STIPENDIO ---
 function apriModaleStipendio() {
-    document.getElementById('input-nuovo-stipendio').value = stipendioMese;
+    document.getElementById('input-nuovo-stipendio').value = '';
     document.getElementById('modale-stipendio').style.display = 'flex';
 }
 function chiudiModaleStipendio() {
     document.getElementById('modale-stipendio').style.display = 'none';
 }
 function salvaStipendio() {
-    let nuovoValore = parseFloat(document.getElementById('input-nuovo-stipendio').value);
-    if(!isNaN(nuovoValore)) {
-        stipendioMese = nuovoValore;
-        salvaImpostazioniFirebase();
-        chiudiModaleStipendio();
-        aggiornaInterfaccia();
+    let rawVal = document.getElementById('input-nuovo-stipendio').value.trim();
+    if (!rawVal) return;
+
+    let nuovoValore = stipendioMese;
+
+    if (rawVal.startsWith('+')) {
+        let incremento = parseFloat(rawVal.substring(1));
+        if (!isNaN(incremento)) nuovoValore += incremento;
+    } else if (rawVal.startsWith('-')) {
+        let decremento = parseFloat(rawVal.substring(1));
+        if (!isNaN(decremento)) nuovoValore -= decremento;
+    } else {
+        let parsed = parseFloat(rawVal);
+        if (!isNaN(parsed)) nuovoValore = parsed;
     }
+
+    stipendioMese = nuovoValore;
+    salvaImpostazioniFirebase();
+    chiudiModaleStipendio();
+    aggiornaInterfaccia();
 }
 
 // --- GESTIONE CATEGORIE ---
