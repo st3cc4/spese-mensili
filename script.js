@@ -53,6 +53,9 @@ function caricaDatiDaFirebase() {
             if(data.dataProssimoStipendio) dataProssimoStipendio = data.dataProssimoStipendio;
         }
         
+        // Ordina alfabeticamente le categorie caricate
+        categorie.sort((a, b) => a.localeCompare(b));
+        
         // Se non è stata salvata una data personalizzata, imposta di default il 10 del mese corrente o successivo
         if (!dataProssimoStipendio) {
             dataProssimoStipendio = calcolaDataStipendioDefault();
@@ -249,6 +252,9 @@ function salvaStipendio() {
 
 // --- GESTIONE CATEGORIE ---
 function aggiornaSelectCategorie() {
+    // Ordina l'array alfabeticamente prima di popolare i menu
+    categorie.sort((a, b) => a.localeCompare(b));
+
     let selectSpesa = document.getElementById('categoria');
     let selectFiltro = document.getElementById('filtro-categoria');
     
@@ -295,6 +301,10 @@ function aggiungiCategoria() {
     }
 
     categorie.push(nomeCat);
+    
+    // Ordina alfabeticamente dopo l'aggiunta
+    categorie.sort((a, b) => a.localeCompare(b));
+
     document.getElementById('nuova-cat-nome').value = '';
     salvaImpostazioniFirebase();
     aggiornaSelectCategorie();
