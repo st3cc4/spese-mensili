@@ -14,6 +14,7 @@
     margin: 0;
     padding: 0;
     font-family: Arial, sans-serif;
+    font-weight: bold;
 }
 
 body {
@@ -36,6 +37,7 @@ header {
 
 header h1 {
     font-size: 1.4rem;
+    font-weight: bold;
 }
 
 nav {
@@ -51,6 +53,7 @@ nav {
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.9rem;
+    font-weight: bold;
 }
 
 .tab-btn.active {
@@ -88,12 +91,14 @@ main {
     color: var(--primary-color);
     border-bottom: 2px solid var(--bg-color);
     padding-bottom: 5px;
+    font-weight: bold;
 }
 
 .card h3 {
     font-size: 1rem;
     margin: 15px 0 8px 0;
     color: var(--primary-color);
+    font-weight: bold;
 }
 
 .info-grid {
@@ -112,6 +117,7 @@ main {
 .label {
     font-size: 0.8rem;
     color: #666;
+    font-weight: bold;
 }
 
 .value {
@@ -142,6 +148,7 @@ select {
     border: 1px solid var(--border-color);
     border-radius: 4px;
     font-size: 0.95rem;
+    font-weight: bold;
 }
 
 .cat-wrapper {
@@ -170,16 +177,18 @@ select {
     cursor: pointer;
     font-size: 0.85rem;
     white-space: nowrap;
+    font-weight: bold;
 }
 
 .btn-small {
-    background-color: var(--primary-color);
+    background-color: #0000ff;
     color: white;
     border: none;
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 0.75rem;
     cursor: pointer;
+    font-weight: bold;
 }
 
 .btn-danger {
@@ -190,6 +199,7 @@ select {
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.75rem;
+    font-weight: bold;
 }
 
 .table-responsive {
@@ -207,16 +217,19 @@ th, td {
     padding: 8px;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
+    font-weight: bold;
 }
 
 th {
     background-color: var(--bg-color);
     color: var(--primary-color);
+    font-weight: bold;
 }
 
 .today-summary {
     font-size: 1rem;
     margin-bottom: 10px;
+    font-weight: bold;
 }
 
 .filters-grid {
@@ -237,6 +250,7 @@ th {
     padding: 8px;
     border-radius: 4px;
     font-size: 0.85rem;
+    font-weight: bold;
 }
 
 /* Finestre Modali */
@@ -274,6 +288,7 @@ footer {
     color: white;
     font-size: 0.85rem;
     margin-top: auto;
+    font-weight: bold;
 }
 
 @media (min-width: 600px) {
