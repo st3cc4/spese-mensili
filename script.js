@@ -64,6 +64,7 @@ function caricaDatiDaFirebase() {
         caricaSpese();
     }).catch((error) => {
         console.error("Errore caricamento impostazioni: ", error);
+        alert("Errore di connessione a Firebase (Lettura impostazioni): " + error.message);
         if (!dataProssimoStipendio) {
             dataProssimoStipendio = calcolaDataStipendioDefault();
         }
@@ -78,8 +79,11 @@ function salvaImpostazioniFirebase() {
         stipendio: stipendioMese,
         categorie: categorie,
         dataProssimoStipendio: dataProssimoStipendio
+    }).then(() => {
+        console.log("Impostazioni salvate con successo su Firebase!");
     }).catch((error) => {
         console.error("Errore salvataggio impostazioni: ", error);
+        alert("ATTENZIONE: Firebase ha bloccato il salvataggio! Controlla le regole di Firestore. Errore: " + error.message);
     });
 }
 
@@ -102,7 +106,7 @@ function aggiornaDataProssimoStipendio() {
     let inputVal = document.getElementById('input-data-prossimo-stipendio').value;
     if (inputVal) {
         dataProssimoStipendio = inputVal;
-        salvaImpostazioniFirebase(); // Salvataggio corretto della data su Firebase
+        salvaImpostazioniFirebase();
         aggiornaInterfaccia();
     }
 }
@@ -195,7 +199,7 @@ function aggiungiSpesa(event) {
         document.getElementById('data-spesa').value = oggi;
         caricaSpese();
     }).catch((error) => {
-        alert("Errore durante il salvataggio: " + error);
+        alert("Errore durante il salvataggio della spesa: " + error.message);
     });
 }
 
@@ -204,7 +208,7 @@ function eliminaSpesa(id) {
         db.collection("spese").doc(id).delete().then(() => {
             caricaSpese();
         }).catch((error) => {
-            alert("Errore durante l'eliminazione: " + error);
+            alert("Errore durante l'eliminazione: " + error.message);
         });
     }
 }
@@ -238,7 +242,7 @@ function salvaStipendio() {
     }
 
     stipendioMese = nuovoValore;
-    salvaImpostazioniFirebase(); // Salvataggio corretto dello stipendio su Firebase
+    salvaImpostazioniFirebase();
     chiudiModaleStipendio();
     aggiornaInterfaccia();
 }
