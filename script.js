@@ -148,7 +148,7 @@ function aggiornaInterfaccia() {
     let annoCorrente = oggi.getFullYear();
     let meseCorrente = oggi.getMonth();
 
-    // Per il calcolo del residuo e del budget usiamo giustamente le spese del mese corrente
+    // Calcolo residuo e budget basato sul mese corrente
     let spesePeriodo = spese.filter(s => {
         let d = new Date(s.data);
         return d.getFullYear() === annoCorrente && d.getMonth() === meseCorrente;
@@ -161,22 +161,30 @@ function aggiornaInterfaccia() {
     let budgetGiornaliero = residuo / giorniMancanti;
     document.getElementById('disp-budget-giorno').innerText = `€ ${budgetGiornaliero > 0 ? budgetGiornaliero.toFixed(2) : '0.00'}`;
 
-    // Per la tabella e il totale di oggi, filtriamo strettamente per la data odierna
-    let dataOggiStr = oggi.toISOString().split('T')[0];
+    // Estraiamo la data odierna in formato YYYY-MM-DD ignorando il fuso orario locale
+    let annoStr = oggi.getFullYear();
+    let meseStr = String(oggi.getMonth() + 1).padStart(2, '0');
+    let giornoStr = String(oggi.getDate()).padStart(2, '0');
+    let dataOggiStr = `${annoStr}-${meseStr}-${giornoStr}`;
+
     let speseOggi = spese.filter(s => s.data === dataOggiStr);
-    let totaleOggi = speseOggi.reduce((sum, s) => sum + parseFloat(s.importo), 0);
-    document.getElementById('totale-oggi').innerText = `€ ${totaleOggi.toFixed(2)}`;
 
     let htmlOggi = '';
+    let totaleOggi = 0;
+
     speseOggi.forEach(s => {
+        let importoNum = parseFloat(s.importo);
+        totaleOggi += importoNum;
         let dataFormattata = s.data.split('-').reverse().join('/');
         htmlOggi += `<tr>
             <td>${dataFormattata}</td>
             <td>${s.categoria}</td>
-            <td>€ ${parseFloat(s.importo).toFixed(2)}</td>
+            <td>€ ${importoNum.toFixed(2)}</td>
             <td><button class="btn-danger" onclick="eliminaSpesa('${s.id}')">Elimina</button></td>
         </tr>`;
     });
+
+    document.getElementById('totale-oggi').innerText = `€ ${totaleOggi.toFixed(2)}`;
     document.getElementById('lista-spese-oggi').innerHTML = htmlOggi || '<tr><td colspan="4" style="text-align:center;">Nessuna spesa registrata oggi.</td></tr>';
 }
 
@@ -373,10 +381,10 @@ function applicaFiltri() {
             }
         }
 
-        let matchCategoria = catFiltro ? (s.categoria === catFiltro) : true;
+        let matchCategory = catFiltro ? (s.categoria === catFiltro) : true;
         let matchTesto = testoRicerca ? (s.importo.toString().includes(testoRicerca) || s.categoria.toLowerCase().includes(testoRicerca) || s.data.includes(testoRicerca)) : true;
 
-        return matchPeriodo && matchCategoria && matchTesto;
+        return matchPeriodo && matchCategory && matchTesto;
     });
 
     let totaleFiltrato = speseFiltrate.reduce((sum, s) => sum + parseFloat(s.importo), 0);
