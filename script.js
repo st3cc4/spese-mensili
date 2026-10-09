@@ -48,7 +48,7 @@ function caricaDatiDaFirebase() {
     db.collection("config").doc("impostazioni").get().then((doc) => {
         if (doc.exists) {
             const data = doc.data();
-            if(data.stipendio) stipendioMese = data.stipendio;
+            if(data.stipendio !== undefined) stipendioMese = data.stipendio;
             if(data.categorie) categorie = data.categorie;
             if(data.dataProssimoStipendio) dataProssimoStipendio = data.dataProssimoStipendio;
         }
