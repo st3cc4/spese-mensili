@@ -11,7 +11,7 @@
 </head>
 <body>
     <header>
-        <h1>Spese Mensili</h1>
+        <h1>SPESE MENSILI</h1>
         <nav>
             <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
             <button class="tab-btn" onclick="switchTab('stats')">Statistiche</button>
@@ -23,7 +23,7 @@
         <section id="dashboard-tab" class="tab-content active">
             <!-- Pannello Stipendio e Info Periodo -->
             <div class="card summary-card">
-                <h2>Riepilogo Periodo</h2>
+                <h2>RIEPILOGO PERIODO</h2>
                 <div class="info-grid">
                     <div>
                         <p class="label">Stipendio:</p>
@@ -49,7 +49,7 @@
 
             <!-- Inserimento Nuova Spesa -->
             <div class="card">
-                <h2>Aggiungi Nuova Spesa</h2>
+                <h2>AGGIUNGI NUOVA SPESA</h2>
                 <form id="form-spesa" onsubmit="aggiungiSpesa(event)">
                     <div class="form-group">
                         <label for="importo">Importo (€):</label>
@@ -66,13 +66,13 @@
                         <label for="data-spesa">Data:</label>
                         <input type="date" id="data-spesa" required>
                     </div>
-                    <button type="submit" class="btn-primary">Salva Spesa</button>
+                    <button type="submit" class="btn-primary" style="background-color: #00ff00; color: #000;">Salva Spesa</button>
                 </form>
             </div>
 
             <!-- Riepilogo Giornaliero -->
             <div class="card">
-                <h2>Spese di Oggi</h2>
+                <h2>SPESE DI OGGI</h2>
                 <div class="today-summary">
                     <p>Totale speso oggi: <strong id="totale-oggi">€ 0.00</strong></p>
                 </div>
@@ -182,12 +182,12 @@
     <!-- MODALE IMPOSTA STIPENDIO -->
     <div id="modale-stipendio" class="modal">
         <div class="modal-content">
-            <h3>Modifica Stipendio</h3>
-            <p>Inserisci importo (es. 1500) o operazione (es. +100 o -50):</p>
-            <input type="text" id="input-nuovo-stipendio" placeholder="1500.00 o +100">
+            <h3>MODIFICA STIPENDIO</h3>
+            <p>Inserisci importo o operazione (+ o -):</p>
+            <input type="text" id="input-nuovo-stipendio" placeholder="">
             <div class="modal-buttons">
-                <button class="btn-primary" onclick="salvaStipendio()">Salva</button>
-                <button class="btn-secondary" onclick="chiudiModaleStipendio()">Annulla</button>
+                <button class="btn-primary" style="background-color: #00ff00; color: #000;" onclick="salvaStipendio()">Salva</button>
+                <button class="btn-secondary" style="background-color: #ffa500; color: #000;" onclick="chiudiModaleStipendio()">Annulla</button>
             </div>
         </div>
     </div>
@@ -195,17 +195,17 @@
     <!-- MODALE GESTIONE CATEGORIE -->
     <div id="modale-categoria" class="modal">
         <div class="modal-content">
-            <h3>Gestione Categorie</h3>
+            <h3>GESTIONE CATEGORIE</h3>
             <div class="form-group" style="margin-top: 15px;">
                 <input type="text" id="nuova-cat-nome" placeholder="Nome nuova categoria...">
-                <button class="btn-primary" style="margin-top: 10px;" onclick="aggiungiCategoria()">Aggiungi Categoria</button>
+                <button class="btn-primary" style="background-color: #00ff00; color: #000; margin-top: 10px;" onclick="aggiungiCategoria()">Aggiungi Categoria</button>
             </div>
             <h4>Categorie Esistenti:</h4>
             <ul id="lista-categorie-modale">
                 <!-- Generato via JS -->
             </ul>
             <div class="modal-buttons" style="margin-top: 15px;">
-                <button class="btn-secondary" onclick="chiudiModaleCategoria()">Chiudi</button>
+                <button class="btn-secondary" style="background-color: #ffa500; color: #000;" onclick="chiudiModaleCategoria()">Chiudi</button>
             </div>
         </div>
     </div>
