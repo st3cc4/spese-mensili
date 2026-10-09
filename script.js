@@ -67,7 +67,6 @@ function caricaDatiDaFirebase() {
         caricaSpese();
     }).catch((error) => {
         console.error("Errore caricamento impostazioni: ", error);
-        alert("Errore di connessione a Firebase (Lettura impostazioni): " + error.message);
         if (!dataProssimoStipendio) {
             dataProssimoStipendio = calcolaDataStipendioDefault();
         }
@@ -82,11 +81,8 @@ function salvaImpostazioniFirebase() {
         stipendio: stipendioMese,
         categorie: categorie,
         dataProssimoStipendio: dataProssimoStipendio
-    }).then(() => {
-        console.log("Impostazioni salvate con successo su Firebase!");
     }).catch((error) => {
         console.error("Errore salvataggio impostazioni: ", error);
-        alert("ATTENZIONE: Firebase ha bloccato il salvataggio! Controlla le regole di Firestore. Errore: " + error.message);
     });
 }
 
@@ -169,10 +165,12 @@ function aggiornaInterfaccia() {
     let totaleOggi = speseOggi.reduce((sum, s) => sum + parseFloat(s.importo), 0);
     document.getElementById('totale-oggi').innerText = `€ ${totaleOggi.toFixed(2)}`;
 
+    // Ripristinata la visualizzazione della tabella delle spese di oggi
     let htmlOggi = '';
     speseOggi.forEach(s => {
+        let dataFormattata = s.data.split('-').reverse().join('/');
         htmlOggi += `<tr>
-            <td>${s.data}</td>
+            <td>${dataFormattata}</td>
             <td>${s.categoria}</td>
             <td>€ ${parseFloat(s.importo).toFixed(2)}</td>
             <td><button class="btn-danger" onclick="eliminaSpesa('${s.id}')">Elimina</button></td>
@@ -202,7 +200,7 @@ function aggiungiSpesa(event) {
         document.getElementById('data-spesa').value = oggi;
         caricaSpese();
     }).catch((error) => {
-        alert("Errore durante il salvataggio della spesa: " + error.message);
+        console.error("Errore salvataggio spesa: ", error);
     });
 }
 
@@ -211,7 +209,7 @@ function eliminaSpesa(id) {
         db.collection("spese").doc(id).delete().then(() => {
             caricaSpese();
         }).catch((error) => {
-            alert("Errore durante l'eliminazione: " + error.message);
+            console.error("Errore eliminazione spesa: ", error);
         });
     }
 }
@@ -396,8 +394,9 @@ function applicaFiltri() {
 
     let htmlTabella = '';
     speseFiltrate.forEach(s => {
+        let dataFormattata = s.data.split('-').reverse().join('/');
         htmlTabella += `<tr>
-            <td>${s.data}</td>
+            <td>${dataFormattata}</td>
             <td>${s.categoria}</td>
             <td>€ ${parseFloat(s.importo).toFixed(2)}</td>
             <td><button class="btn-danger" onclick="eliminaSpesa('${s.id}')">Elimina</button></td>
