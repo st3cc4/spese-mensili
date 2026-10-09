@@ -1,6 +1,6 @@
 body {
     font-family: Arial, sans-serif;
-    background-color: #f4f7f6;
+    background-color: #f4f4f9;
     margin: 0;
     padding: 20px;
     color: #333;
@@ -24,13 +24,13 @@ h1, h2 {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* Ingrandimento e grassetto per tutte le scritte nei blocchi e testi principali */
+/* Ingrandimento e grassetto per scritte e testi */
 p, label, input, select, button, li {
     font-size: 16px;
     font-weight: bold;
 }
 
-.summary-card p {
+.card p {
     font-size: 18px;
     margin: 10px 0;
 }
@@ -46,7 +46,7 @@ p, label, input, select, button, li {
 
 .form-group input, .form-group select {
     width: 100%;
-    padding: 8px;
+    padding: 10px;
     box-sizing: border-box;
     border: 1px solid #ccc;
     border-radius: 4px;
@@ -54,31 +54,32 @@ p, label, input, select, button, li {
 
 button {
     width: 100%;
-    padding: 10px;
+    padding: 12px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
     font-weight: bold;
+    font-size: 16px;
 }
 
-/* Colori personalizzati richiesti per i pulsanti */
+/* Colori specifici richiesti per i pulsanti */
 .btn-modifica {
     background-color: #0000ff;
-    color: #fff;
+    color: #ffffff;
 }
 
 .btn-gestisci {
     background-color: #ffff00;
-    color: #000;
+    color: #000000;
 }
 
 .btn-salva {
     background-color: #00ff00;
-    color: #000;
+    color: #000000;
 }
 
 button:hover {
-    opacity: 0.8;
+    opacity: 0.85;
 }
 
 ul {
@@ -88,8 +89,8 @@ ul {
 
 li {
     background: #f9f9f9;
-    padding: 10px;
-    margin-top: 5px;
+    padding: 12px;
+    margin-top: 8px;
     border-left: 4px solid #2c3e50;
     display: flex;
     justify-content: space-between;
