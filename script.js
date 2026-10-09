@@ -232,7 +232,8 @@ function updateStatistics() {
         if (filterType === 'day') {
             if (expDate.toDateString() === now.toDateString()) include = true;
         } else if (filterType === 'week') {
-            const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+            const firstDayOfWeek = new Date(now);
+            firstDayOfWeek.setDate(now.getDate() - now.getDay());
             if (expDate >= firstDayOfWeek) include = true;
         } else if (filterType === 'month') {
             if (expDate.getMonth() === now.getMonth() && expDate.getFullYear() === now.getFullYear()) include = true;
