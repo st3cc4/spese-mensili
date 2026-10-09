@@ -48,7 +48,7 @@ function caricaDatiDaFirebase() {
     db.collection("config").doc("impostazioni").get().then((doc) => {
         if (doc.exists) {
             const data = doc.data();
-            if(data.stipendio !== undefined) stipendioMese = data.stipendio;
+            if(data.stipendio !== undefined) stipendioMese = Number(data.stipendio);
             if(data.categorie) categorie = data.categorie;
             if(data.dataProssimoStipendio) dataProssimoStipendio = data.dataProssimoStipendio;
         }
@@ -177,9 +177,15 @@ function aggiornaInterfaccia() {
 // --- GESTIONE SPESE ---
 function aggiungiSpesa(event) {
     event.preventDefault();
-    let importo = parseFloat(document.getElementById('importo').value);
+    let importoInput = document.getElementById('importo').value.trim().replace(',', '.');
+    let importo = parseFloat(importoInput);
     let categoria = document.getElementById('categoria').value;
     let data = document.getElementById('data-spesa').value;
+
+    if (isNaN(importo)) {
+        alert("Inserisci un importo valido.");
+        return;
+    }
 
     let nuovaSpesa = { importo, categoria, data, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
 
@@ -218,13 +224,16 @@ function salvaStipendio() {
     let nuovoValore = stipendioMese;
 
     if (rawVal.startsWith('+')) {
-        let incremento = parseFloat(rawVal.substring(1));
+        let incrementoStr = rawVal.substring(1).replace(',', '.');
+        let incremento = parseFloat(incrementoStr);
         if (!isNaN(incremento)) nuovoValore += incremento;
     } else if (rawVal.startsWith('-')) {
-        let decremento = parseFloat(rawVal.substring(1));
+        let decrementoStr = rawVal.substring(1).replace(',', '.');
+        let decremento = parseFloat(decrementoStr);
         if (!isNaN(decremento)) nuovoValore -= decremento;
     } else {
-        let parsed = parseFloat(rawVal);
+        let parsedStr = rawVal.replace(',', '.');
+        let parsed = parseFloat(parsedStr);
         if (!isNaN(parsed)) nuovoValore = parsed;
     }
 
@@ -300,7 +309,7 @@ function cambiaTipoFiltro() {
 function applicaFiltri() {
     let tipoFiltro = document.getElementById('filtro-tipo').value;
     let catFiltro = document.getElementById('filtro-categoria').value;
-    let testoRicerca = document.getElementById('filtro-ricerca-testo').value.toLowerCase();
+    let testoRicerca = document.getElementById('filtro-ricerca-testo').value.toLowerCase().replace(',', '.');
 
     let speseFiltrate = spese.filter(s => {
         let matchPeriodo = true;
