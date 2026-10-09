@@ -53,7 +53,7 @@ function caricaDatiDaFirebase() {
             if(data.dataProssimoStipendio) dataProssimoStipendio = data.dataProssimoStipendio;
         }
         
-        // Se non è stata salvata una data personalizzata, calcola una data di default (es. il 10 del mese)
+        // Se non è stata salvata una data personalizzata, imposta di default il 10 del mese corrente o successivo
         if (!dataProssimoStipendio) {
             dataProssimoStipendio = calcolaDataStipendioDefault();
         }
@@ -123,7 +123,6 @@ function caricaSpese() {
 function aggiornaInterfaccia() {
     document.getElementById('disp-stipendio').innerText = `€ ${stipendioMese.toFixed(2)}`;
 
-    // Se l'utente ha modificato la data nel campo input, sincronizziamo la variabile
     let inputDataVal = document.getElementById('input-data-prossimo-stipendio').value;
     if (inputDataVal) {
         dataProssimoStipendio = inputDataVal;
@@ -133,32 +132,35 @@ function aggiornaInterfaccia() {
 
     let dataStipendioObj = dataProssimoStipendio ? new Date(dataProssimoStipendio) : new Date();
     
-    // Periodo di riferimento: un mese prima della data del prossimo stipendio fino alla data scelta
-    let finePeriodo = new Date(dataStipendioObj);
-    let inizioPeriodo = new Date(dataStipendioObj);
-    inizioPeriodo.setMonth(inizioPeriodo.getMonth() - 1);
+    // Per il calcolo delle spese del periodo, consideriamo tutte le spese inserite da quando è visibile lo stipendio o semplicemente dall'inizio del mese/periodo attuale
+    // Calcoliamo i giorni restanti esattamente da OGGI fino alla data scelta
+    let oggi = new Date();
+    oggi.setHours(0,0,0,0);
+    dataStipendioObj.setHours(0,0,0,0);
+
+    let diffTempo = dataStipendioObj - oggi;
+    let giorniMancanti = Math.ceil(diffTempo / (1000 * 60 * 60 * 24));
+    if (giorniMancanti < 1) giorniMancanti = 1;
+    document.getElementById('disp-giorni').innerText = giorniMancanti;
+
+    // Calcoliamo il totale speso nel mese corrente o in generale per il residuo
+    // Qui consideriamo le spese registrate nel mese in corso
+    let annoCorrente = oggi.getFullYear();
+    let meseCorrente = oggi.getMonth();
 
     let spesePeriodo = spese.filter(s => {
         let d = new Date(s.data);
-        return d >= inizioPeriodo && d < finePeriodo;
+        return d.getFullYear() === annoCorrente && d.getMonth() === meseCorrente;
     });
 
     let totaleSpesoPeriodo = spesePeriodo.reduce((sum, s) => sum + parseFloat(s.importo), 0);
     let residuo = stipendioMese - totaleSpesoPeriodo;
     document.getElementById('disp-residuo').innerText = `€ ${residuo.toFixed(2)}`;
 
-    let oggi = new Date();
-    oggi.setHours(0,0,0,0);
-    
-    let diffTempo = dataStipendioObj - oggi;
-    let giorniMancanti = Math.ceil(diffTempo / (1000 * 60 * 60 * 24));
-    if (giorniMancanti < 1) giorniMancanti = 1;
-    document.getElementById('disp-giorni').innerText = giorniMancanti;
-
     let budgetGiornaliero = residuo / giorniMancanti;
     document.getElementById('disp-budget-giorno').innerText = `€ ${budgetGiornaliero > 0 ? budgetGiornaliero.toFixed(2) : '0.00'}`;
 
-    let dataOggiStr = new Date().toISOString().split('T')[0];
+    let dataOggiStr = oggi.toISOString().split('T')[0];
     let speseOggi = spese.filter(s => s.data === dataOggiStr);
     let totaleOggi = speseOggi.reduce((sum, s) => sum + parseFloat(s.importo), 0);
     document.getElementById('totale-oggi').innerText = `€ ${totaleOggi.toFixed(2)}`;
