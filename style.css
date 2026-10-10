@@ -158,6 +158,17 @@ select {
     font-weight: bold;
 }
 
+/* Ingrandimento specifico per il selettore della settimana senza rompere il layout */
+input[type="week"] {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--accent-color);
+    border-radius: 6px;
+    font-size: 1.1rem;
+    background-color: #fff;
+    cursor: pointer;
+}
+
 .cat-wrapper {
     display: flex;
     gap: 8px;
@@ -204,8 +215,8 @@ select {
     border: none;
     padding: 4px 8px;
     border-radius: 4px;
-    cursor: pointer;
     font-size: 0.75rem;
+    cursor: pointer;
     font-weight: bold;
 }
 
