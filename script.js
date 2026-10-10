@@ -21,9 +21,12 @@ let dataProssimoStipendio = ""; // Data personalizzata del prossimo stipendio
 
 // Al caricamento della pagina
 window.onload = function() {
-    // Imposta la data odierna nel campo input spesa
-    const oggi = new Date().toISOString().split('T')[0];
-    document.getElementById('data-spesa').value = oggi;
+    const oggi = new Date();
+    const oggiStr = oggi.toISOString().split('T')[0];
+    document.getElementById('data-spesa').value = oggiStr;
+    
+    // Imposta l'anno corrente nel filtro anno all'avvio
+    document.getElementById('filtro-anno-val').value = oggi.getFullYear();
     
     caricaDatiDaFirebase();
 };
@@ -53,10 +56,8 @@ function caricaDatiDaFirebase() {
             if(data.dataProssimoStipendio) dataProssimoStipendio = data.dataProssimoStipendio;
         }
         
-        // Ordina alfabeticamente le categorie caricate
         categorie.sort((a, b) => a.localeCompare(b));
         
-        // Se non è stata salvata una data personalizzata, imposta di default il 10 del mese corrente o successivo
         if (!dataProssimoStipendio) {
             dataProssimoStipendio = calcolaDataStipendioDefault();
         }
@@ -124,7 +125,6 @@ function caricaSpese() {
 
 // --- AGGIORNA INTERFACCIA DASHBOARD ---
 function aggiornaInterfaccia() {
-    // Mostra l'importo dello stipendio direttamente sul pulsante blu
     document.getElementById('btn-stipendio').innerText = `€ ${stipendioMese.toFixed(2)}`;
 
     let inputDataVal = document.getElementById('input-data-prossimo-stipendio').value;
@@ -148,7 +148,6 @@ function aggiornaInterfaccia() {
     let annoCorrente = oggi.getFullYear();
     let meseCorrente = oggi.getMonth();
 
-    // Calcolo residuo e budget basato sul mese corrente
     let spesePeriodo = spese.filter(s => {
         let d = new Date(s.data);
         return d.getFullYear() === annoCorrente && d.getMonth() === meseCorrente;
@@ -161,7 +160,6 @@ function aggiornaInterfaccia() {
     let budgetGiornaliero = residuo / giorniMancanti;
     document.getElementById('disp-budget-giorno').innerText = `€ ${budgetGiornaliero > 0 ? budgetGiornaliero.toFixed(2) : '0.00'}`;
 
-    // Estraiamo la data odierna in formato YYYY-MM-DD ignorando il fuso orario locale
     let annoStr = oggi.getFullYear();
     let meseStr = String(oggi.getMonth() + 1).padStart(2, '0');
     let giornoStr = String(oggi.getDate()).padStart(2, '0');
@@ -259,7 +257,6 @@ function salvaStipendio() {
 
 // --- GESTIONE CATEGORIE ---
 function aggiornaSelectCategorie() {
-    // Ordina l'array alfabeticamente prima di popolare i menu
     categorie.sort((a, b) => a.localeCompare(b));
 
     let selectSpesa = document.getElementById('categoria');
@@ -299,7 +296,6 @@ function aggiungiCategoria() {
     let inputVal = document.getElementById('nuova-cat-nome').value.trim();
     if (!inputVal) return;
 
-    // Capitalizza la prima lettera e mette il resto in minuscolo
     let nomeCat = inputVal.charAt(0).toUpperCase() + inputVal.slice(1).toLowerCase();
 
     if(categorie.includes(nomeCat)) {
@@ -308,8 +304,6 @@ function aggiungiCategoria() {
     }
 
     categorie.push(nomeCat);
-    
-    // Ordina alfabeticamente dopo l'aggiunta
     categorie.sort((a, b) => a.localeCompare(b));
 
     document.getElementById('nuova-cat-nome').value = '';
@@ -332,10 +326,48 @@ function eliminaCategoria(cat) {
 function cambiaTipoFiltro() {
     let tipo = document.getElementById('filtro-tipo').value;
     document.getElementById('box-giorno').style.display = tipo === 'giorno' ? 'block' : 'none';
+    document.getElementById('box-settimana').style.display = tipo === 'settimana' ? 'block' : 'none';
     document.getElementById('box-intervallo').style.display = tipo === 'periodo' ? 'block' : 'none';
     document.getElementById('box-mese').style.display = tipo === 'mese' ? 'block' : 'none';
     document.getElementById('box-anno').style.display = tipo === 'anno' ? 'block' : 'none';
+    
+    // Se seleziona settimana e il campo è vuoto, imposta la settimana corrente
+    if (tipo === 'settimana' && !document.getElementById('filtro-settimana-val').value) {
+        let now = new Date();
+        let year = now.getFullYear();
+        // Calcolo approssimativo/standard della settimana ISO corrente per l'input week
+        let d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+        let dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        let yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+        let weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+        let weekStr = year + "-W" + (weekNo < 10 ? "0" : "") + weekNo;
+        document.getElementById('filtro-settimana-val').value = weekStr;
+    }
+
     applicaFiltri();
+}
+
+// Funzione di supporto per ottenere le date di inizio e fine di una settimana ISO (YYYY-WXX)
+function getDatesForWeek(weekStr) {
+    let [yearStr, weekPart] = weekStr.split('-W');
+    let year = parseInt(yearStr);
+    let week = parseInt(weekPart);
+    
+    let jan4 = new Date(year, 0, 4);
+    let dayJan4 = jan4.getDay() || 7;
+    let startOfWeek1 = new Date(jan4);
+    startOfWeek1.setDate(jan4.getDate() - dayJan4 + 1);
+    
+    let startWeek = new Date(startOfWeek1);
+    startWeek.setDate(startOfWeek1.getDate() + (week - 1) * 7);
+    startWeek.setHours(0,0,0,0);
+    
+    let endWeek = new Date(startWeek);
+    endWeek.setDate(startWeek.getDate() + 6);
+    endWeek.setHours(23,59,59,999);
+    
+    return { start: startWeek, end: endWeek };
 }
 
 function applicaFiltri() {
@@ -352,10 +384,13 @@ function applicaFiltri() {
             if (valGiorno) matchPeriodo = (s.data === valGiorno);
             else matchPeriodo = false;
         } else if (tipoFiltro === 'settimana') {
-            let oggi = new Date();
-            let inizioSettimana = new Date(oggi.setDate(oggi.getDate() - oggi.getDay() + 1));
-            inizioSettimana.setHours(0,0,0,0);
-            matchPeriodo = (dataSpesa >= inizioSettimana);
+            let valSettimana = document.getElementById('filtro-settimana-val').value;
+            if (valSettimana) {
+                let range = getDatesForWeek(valSettimana);
+                matchPeriodo = (dataSpesa >= range.start && dataSpesa <= range.end);
+            } else {
+                matchPeriodo = false;
+            }
         } else if (tipoFiltro === 'mese') {
             let valMese = document.getElementById('filtro-mese-val').value;
             if (valMese) {
@@ -381,10 +416,10 @@ function applicaFiltri() {
             }
         }
 
-        let matchCategory = catFiltro ? (s.categoria === catFiltro) : true;
+        let matchCategoria = catFiltro ? (s.categoria === catFiltro) : true;
         let matchTesto = testoRicerca ? (s.importo.toString().includes(testoRicerca) || s.categoria.toLowerCase().includes(testoRicerca) || s.data.includes(testoRicerca)) : true;
 
-        return matchPeriodo && matchCategory && matchTesto;
+        return matchPeriodo && matchCategoria && matchTesto;
     });
 
     let totaleFiltrato = speseFiltrate.reduce((sum, s) => sum + parseFloat(s.importo), 0);
