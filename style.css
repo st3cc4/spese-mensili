@@ -149,6 +149,7 @@ input[type="text"],
 input[type="number"],
 input[type="date"],
 input[type="month"],
+input[type="week"],
 select {
     width: 100%;
     padding: 8px;
@@ -156,17 +157,6 @@ select {
     border-radius: 4px;
     font-size: 0.95rem;
     font-weight: bold;
-}
-
-/* Ingrandimento specifico per il selettore della settimana senza rompere il layout */
-input[type="week"] {
-    width: 100%;
-    padding: 12px;
-    border: 2px solid var(--accent-color);
-    border-radius: 6px;
-    font-size: 1.1rem;
-    background-color: #fff;
-    cursor: pointer;
 }
 
 .cat-wrapper {
