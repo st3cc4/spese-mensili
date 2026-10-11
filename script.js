@@ -335,7 +335,6 @@ function cambiaTipoFiltro() {
     if (tipo === 'settimana' && !document.getElementById('filtro-settimana-val').value) {
         let now = new Date();
         let year = now.getFullYear();
-        // Calcolo approssimativo/standard della settimana ISO corrente per l'input week
         let d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
         let dayNum = d.getUTCDay() || 7;
         d.setUTCDate(d.getUTCDate() + 4 - dayNum);
@@ -348,7 +347,6 @@ function cambiaTipoFiltro() {
     applicaFiltri();
 }
 
-// Funzione di supporto per ottenere le date di inizio e fine di una settimana ISO (YYYY-WXX)
 function getDatesForWeek(weekStr) {
     let [yearStr, weekPart] = weekStr.split('-W');
     let year = parseInt(yearStr);
