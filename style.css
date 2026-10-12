@@ -138,7 +138,6 @@ main {
     font-weight: bold;
 }
 
-/* Griglia per affiancare Importo e Data */
 .form-row-2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -261,7 +260,6 @@ th {
     font-weight: bold;
 }
 
-/* Finestre Modali */
 .modal {
     display: none;
     position: fixed;
