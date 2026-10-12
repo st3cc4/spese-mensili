@@ -50,7 +50,6 @@
             <div class="card">
                 <h2>NUOVA SPESA</h2>
                 <form id="form-spesa" onsubmit="aggiungiSpesa(event)">
-                    <!-- Riga Importo e Data affiancati -->
                     <div class="form-row-2">
                         <div class="form-group">
                             <label for="importo">Importo (€):</label>
@@ -207,7 +206,6 @@
                 <input type="text" id="nuova-cat-nome" placeholder="Nome nuova categoria...">
                 <button class="btn-primary" style="background-color: #00ff00; color: #000; margin-top: 10px;" onclick="aggiungiCategoria()">Aggiungi Categoria</button>
             </div>
-            <!-- Lista categorie gestita dinamicamente via JS -->
             <ul id="lista-categorie-modale">
                 <!-- Generato via JS -->
             </ul>
@@ -221,6 +219,7 @@
         <p>Created by STECCA</p>
     </footer>
 
-    <script src="script.js"></script>
+    <!-- Script principale come modulo -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>
