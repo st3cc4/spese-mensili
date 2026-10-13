@@ -105,7 +105,6 @@ main {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
-    align-items: stretch;
 }
 
 .info-grid div {
@@ -113,10 +112,10 @@ main {
     padding: 12px;
     border-radius: 6px;
     text-align: center;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    min-height: 80px;
+    justify-content: space-between;
 }
 
 .label {
