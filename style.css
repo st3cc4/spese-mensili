@@ -107,15 +107,16 @@ main {
     gap: 12px;
 }
 
-.info-grid div {
+.info-box {
     background: var(--bg-color);
     padding: 12px;
     border-radius: 6px;
     text-align: center;
-    height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: center;
+    align-items: center;
+    min-height: 85px;
 }
 
 .label {
