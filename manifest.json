@@ -1,0 +1,20 @@
+{
+  "name": "Spese Mensili",
+  "short_name": "Spese",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0000ff",
+  "icons": [
+    {
+      "src": "icone/icona-sito_192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icone/icona-sito_512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
