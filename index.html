@@ -33,24 +33,13 @@
         </header>
 
         <div class="container">
-            <!-- Box Configurazione Stipendio -->
-            <div class="card">
-                <h3>Impostazioni Stipendio</h3>
-                <div class="form-group">
-                    <label>Data Prossimo Stipendio</label>
-                    <input type="date" id="salary-date">
+            <!-- Box Compatto: Solo Data Prossimo Stipendio + Pulsante per aprire il Pop-up -->
+            <div class="card" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                <div style="flex: 1; margin-bottom: 0;">
+                    <label style="font-size: 11px; color: #666; font-weight: 600; margin-bottom: 4px; display: block;">Data Prossimo Stipendio</label>
+                    <input type="date" id="salary-date" style="padding: 8px; font-size: 13px;">
                 </div>
-                <div class="metric-grid">
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label>Importo Stipendio (€)</label>
-                        <input type="number" step="0.01" id="salary-base" placeholder="0.00">
-                    </div>
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label>Extra / Spese (+ / -)</label>
-                        <input type="text" id="salary-extra" placeholder="es. 139.20 + 90">
-                    </div>
-                </div>
-                <button id="save-salary-btn" class="btn" style="margin-top: 10px;">Salva Dati Stipendio</button>
+                <button type="button" id="open-salary-modal" class="btn" style="width: auto; padding: 10px 14px; margin-top: 18px; font-size: 13px; background-color: #f9a500ff;" title="Modifica Stipendio ed Extra">⚙️ Stipendio</button>
             </div>
 
             <!-- Dashboard Calcoli -->
@@ -78,7 +67,7 @@
                 </div>
             </div>
 
-            <!-- Modulo Inserimento / Modifica Spesa -->
+            <!-- Modulo Inserimento / Modifica Spesa (Ora ben in vista) -->
             <div class="card">
                 <h3 id="form-expense-title">Aggiungi Nuova Spesa</h3>
                 <form id="expense-form">
@@ -109,6 +98,25 @@
             <div class="card">
                 <h3>Spese di Oggi</h3>
                 <div id="recent-expenses-list"></div>
+            </div>
+        </div>
+
+        <!-- Pop-up (Modale) per Impostazioni Stipendio ed Extra -->
+        <div id="salary-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <h3>Modifica Stipendio ed Extra</h3>
+                <div class="form-group">
+                    <label>Importo Stipendio (€)</label>
+                    <input type="number" step="0.01" id="modal-salary-base" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Extra / Spese (+ / -)</label>
+                    <input type="text" id="modal-salary-extra" placeholder="es. 139.20 + 90">
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 15px;">
+                    <button type="button" id="save-salary-modal-btn" class="btn">Salva</button>
+                    <button type="button" id="close-salary-modal" class="btn btn-secondary">Annulla</button>
+                </div>
             </div>
         </div>
 
