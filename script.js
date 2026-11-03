@@ -155,12 +155,22 @@ function aggiornaInterfaccia() {
     if (giorniMancanti < 1) giorniMancanti = 1;
     document.getElementById('disp-giorni').innerText = giorniMancanti;
 
-    let annoCorrente = oggi.getFullYear();
-    let meseCorrente = oggi.getMonth();
+    // Calcolo del periodo basato sul giorno dello stipendio (un mese prima della data del prossimo stipendio fino a oggi)
+    let dataInizioPeriodo = new Date(dataStipendioObj);
+    dataInizioPeriodo.setMonth(dataInizioPeriodo.getMonth() - 1);
+
+    let formatoDataStr = (d) => {
+        let y = d.getFullYear();
+        let m = String(d.getMonth() + 1).padStart(2, '0');
+        let day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
+    let dataInizioStr = formatoDataStr(dataInizioPeriodo);
+    let dataOggiStr = formatoDataStr(oggi);
 
     let spesePeriodo = spese.filter(s => {
-        let d = new Date(s.data);
-        return d.getFullYear() === annoCorrente && d.getMonth() === meseCorrente;
+        return s.data >= dataInizioStr && s.data <= dataOggiStr;
     });
 
     let totaleSpesoPeriodo = spesePeriodo.reduce((sum, s) => sum + parseFloat(s.importo), 0);
@@ -169,11 +179,6 @@ function aggiornaInterfaccia() {
 
     let budgetGiornaliero = residuo / giorniMancanti;
     document.getElementById('disp-budget-giorno').innerText = `€ ${budgetGiornaliero > 0 ? budgetGiornaliero.toFixed(2) : '0.00'}`;
-
-    let annoStr = oggi.getFullYear();
-    let meseStr = String(oggi.getMonth() + 1).padStart(2, '0');
-    let giornoStr = String(oggi.getDate()).padStart(2, '0');
-    let dataOggiStr = `${annoStr}-${meseStr}-${giornoStr}`;
 
     let speseOggi = spese.filter(s => s.data === dataOggiStr);
 
