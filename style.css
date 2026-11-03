@@ -40,11 +40,17 @@ header h1 {
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
+/* Sfondo colorato specifico per mettere in risalto il modulo spesa */
+.card-highlight {
+    background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 100%);
+    border: 1px solid #d0e1fd;
+}
+
 .card h3 {
     font-size: 15px;
     color: #3b5998;
     margin-bottom: 12px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
     padding-bottom: 6px;
 }
 
@@ -55,7 +61,7 @@ header h1 {
 .form-group label {
     display: block;
     font-size: 11px;
-    color: #666;
+    color: #555;
     margin-bottom: 4px;
     font-weight: 600;
     white-space: nowrap;
