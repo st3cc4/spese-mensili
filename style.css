@@ -54,11 +54,11 @@ header h1 {
 
 .form-group label {
     display: block;
-    font-size: 11px; /* Leggermente più compatta per evitare a capo */
+    font-size: 11px;
     color: #666;
     margin-bottom: 4px;
     font-weight: 600;
-    white-space: nowrap; /* Impedisce alla scritta di andare a capo */
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -195,6 +195,38 @@ input, select {
     color: #888;
 }
 
+/* Stili Pop-up Modale */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 15px;
+}
+
+.modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.modal-content h3 {
+    font-size: 16px;
+    color: #3b5998;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+}
+
 .nav-bar {
     position: fixed;
     bottom: 0;
@@ -204,7 +236,7 @@ input, select {
     background: white;
     display: flex;
     border-top: 1px solid #ddd;
-    box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
+    box-shadow: -2px 5px rgba(0,0,0,0.05);
 }
 
 .nav-item {
