@@ -7,12 +7,12 @@ import {
 let currentUser = null;
 let categories = [];
 let expenses = [];
-let salaryData = { nextDate: "", base: 0, extraExpr: "", extraVal: 0 };
+let salaryData = { nextDate: "", base: 0, extra: 0, extraExpression: "" };
 
-// Inizializzazione Data di Oggi
+// Inizializzazione della Data di Oggi per l'Input Spesa
 document.getElementById('expense-date').valueAsDate = new Date();
 
-// Controllo Autenticazione
+// Controllo Stato Autenticazione
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
@@ -26,7 +26,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// Login / Registrazione
+// Evento Login / Registrazione
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('email').value;
@@ -46,49 +46,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 // Logout
 document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
-// Valutatore Smart di Espressioni Matematiche (es. "139.20 + 90 - 15")
-function parseMathExpression(expr) {
-    if (!expr || typeof expr !== 'string') return 0;
-    // Pulisce la stringa consentendo solo numeri, punti, virgole e operatori + - * /
-    const cleanExpr = expr.replace(/,/g, '.').replace(/[^0-9\+\-\*\/\.]/g, '');
-    if (!cleanExpr) return 0;
-    try {
-        // Valuta l'espressione in modo sicuro senza eval
-        const fn = new Function(`return ${cleanExpr}`);
-        const result = fn();
-        return isNaN(result) || !isFinite(result) ? 0 : parseFloat(result);
-    } catch (e) {
-        return 0;
-    }
-}
-
-// Gestione dell'Input Extra in tempo reale e pulsante +/-
-const extraInput = document.getElementById('salary-extra-expr');
-const extraPreview = document.getElementById('extra-preview');
-const toggleSignBtn = document.getElementById('toggle-sign-btn');
-
-function updateExtraCalculated() {
-    const val = parseMathExpression(extraInput.value);
-    salaryData.extraVal = val;
-    extraPreview.innerText = `Calcolo: € ${val.toFixed(2)}`;
-    calculateDashboard();
-}
-
-extraInput.addEventListener('input', updateExtraCalculated);
-
-toggleSignBtn.addEventListener('click', () => {
-    let current = extraInput.value.trim();
-    if (!current) {
-        extraInput.value = "-";
-    } else if (current.startsWith("-")) {
-        extraInput.value = current.substring(1);
-    } else {
-        extraInput.value = "-" + current;
-    }
-    updateExtraCalculated();
-});
-
-// Caricamento Dati
+// Caricamento Dati Dalle Collezioni Firestore
 async function loadUserData() {
     await loadSalary();
     await loadCategories();
@@ -105,13 +63,13 @@ async function loadSalary() {
             const data = docSnap.data();
             salaryData.nextDate = data.dataProssimoStipendio || "";
             salaryData.base = parseFloat(data.stipendio || 0);
-            salaryData.extraExpr = data.extraExpr || (data.extra ? String(data.extra) : "");
             
+            // Gestiamo il campo extra sia se è un numero sia se è una stringa/espressione
+            salaryData.extraExpression = data.extraExpression || (data.extra !== undefined ? data.extra.toString() : "0");
+
             document.getElementById('salary-date').value = salaryData.nextDate;
             document.getElementById('salary-base').value = salaryData.base;
-            extraInput.value = salaryData.extraExpr;
-            
-            updateExtraCalculated();
+            document.getElementById('salary-extra').value = salaryData.extraExpression;
         }
     } catch (e) {
         console.log("Errore caricamento stipendio:", e);
@@ -121,14 +79,24 @@ async function loadSalary() {
 document.getElementById('save-salary-btn').addEventListener('click', async () => {
     const nextDate = document.getElementById('salary-date').value;
     const base = parseFloat(document.getElementById('salary-base').value) || 0;
-    const expr = extraInput.value;
-    const calculatedExtra = parseMathExpression(expr);
+    const extraInput = document.getElementById('salary-extra').value.trim();
 
-    salaryData = {
-        nextDate,
-        base,
-        extraExpr: expr,
-        extraVal: calculatedExtra
+    let evaluatedExtra = 0;
+    try {
+        // Valuta in sicurezza l'espressione matematica inserita (es. "139.20 + 90")
+        // Permettiamo solo numeri, spazi, punti, più e meno per sicurezza
+        const sanitized = extraInput.replace(/[^0-9+\-.\s]/g, '');
+        evaluatedExtra = sanitized ? eval(sanitized) : 0;
+    } catch (err) {
+        alert("Formato extra non valido. Controlla i valori inseriti.");
+        return;
+    }
+
+    salaryData = { 
+        nextDate, 
+        base, 
+        extra: evaluatedExtra, 
+        extraExpression: extraInput 
     };
 
     const docRef = doc(db, "config", "impostazioni");
@@ -137,8 +105,8 @@ document.getElementById('save-salary-btn').addEventListener('click', async () =>
     
     currentData.dataProssimoStipendio = nextDate;
     currentData.stipendio = base;
-    currentData.extraExpr = expr;
-    currentData.extra = calculatedExtra;
+    currentData.extra = evaluatedExtra;
+    currentData.extraExpression = extraInput; // Salviamo la stringa originale digitata
 
     await setDoc(docRef, currentData);
     alert("Dati stipendio salvati!");
@@ -334,7 +302,7 @@ function calculateDashboard() {
         return expDate >= lastSalaryDate && expDate <= today;
     }).reduce((sum, e) => sum + e.amount, 0);
 
-    const totalSalary = (salaryData.base || 0) + (salaryData.extraVal || 0);
+    const totalSalary = (salaryData.base || 0) + (salaryData.extra || 0);
     const residue = totalSalary - currentPeriodExpenses;
     document.getElementById('salary-residue').innerText = `€ ${residue.toFixed(2)}`;
 
