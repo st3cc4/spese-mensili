@@ -1,476 +1,255 @@
-// --- CONFIGURAZIONE FIREBASE ---
-const firebaseConfig = {
-    apiKey: "AIzaSyAXvgC2P16ScZb5SCynIY2LF70oqbGbSRWo",
-    authDomain: "spese-mensili-58c04.firebaseapp.com",
-    databaseURL: "https://spese-mensili-58c04-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "spese-mensili-58c04",
-    storageBucket: "spese-mensili-58c04.firebasestorage.app",
-    messagingSenderId: "83551600697",
-    appId: "1:83551600697:web:7a74ff965ab4cd59d88adc"
-};
+import { 
+    auth, db, signInWithEmailAndPassword, createUserWithEmailAndPassword, 
+    onAuthStateChanged, signOut, collection, addDoc, getDocs, doc, 
+    updateDoc, deleteDoc, query, where, setDoc, getDoc 
+} from "./firebase-config.js";
 
-// Inizializzazione Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+let currentUser = null;
+let categories = [];
+let expenses = [];
+let salaryData = { nextDate: "", base: 0, extra: 0 };
 
-// Abilitazione della persistenza offline per Firestore (fondamentale per la PWA)
-db.enablePersistence()
-    .catch((err) => {
-        if (err.code == 'failed-precondition') {
-            console.warn("Persistenza offline fallita: più schede aperte contemporaneamente.");
-        } else if (err.code == 'unimplemented') {
-            console.warn("Il browser non supporta la persistenza offline.");
-        }
-    });
+// Inizializzazione della Data di Oggi per l'Input Spesa
+document.getElementById('expense-date').valueAsDate = new Date();
 
-// Variabili globali per i dati locali
-let spese = [];
-let categorie = ["Alimentari", "Casa", "Svago", "Trasporti", "Bollette", "Altro"];
-let stipendioMese = 1500.00; // Valore di default modificabile
-let dataProssimoStipendio = ""; // Data personalizzata del prossimo stipendio
-
-// Al caricamento della pagina
-window.onload = function() {
-    const oggi = new Date();
-    const oggiStr = oggi.toISOString().split('T')[0];
-    document.getElementById('data-spesa').value = oggiStr;
-    
-    // Imposta l'anno corrente nel filtro anno all'avvio
-    document.getElementById('filtro-anno-val').value = oggi.getFullYear();
-    
-    caricaDatiDaFirebase();
-};
-
-// --- GESTIONE SCHEDE (TABS) ---
-function switchTab(tabId) {
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    
-    if(tabId === 'dashboard') {
-        document.getElementById('dashboard-tab').classList.add('active');
-        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+// Controllo Stato Autenticazione (Login Persistente)
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        currentUser = user;
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('app-screen').classList.remove('hidden');
+        await loadUserData();
     } else {
-        document.getElementById('stats-tab').classList.add('active');
-        document.querySelectorAll('.tab-btn')[1].classList.add('active');
-        applicaFiltri(); // Aggiorna le statistiche all'apertura
+        currentUser = null;
+        document.getElementById('auth-screen').classList.remove('hidden');
+        document.getElementById('app-screen').classList.add('hidden');
     }
-}
+});
 
-// --- COMUNICAZIONE CON FIREBASE ---
-function caricaDatiDaFirebase() {
-    db.collection("config").doc("impostazioni").get().then((doc) => {
-        if (doc.exists) {
-            const data = doc.data();
-            if(data.stipendio !== undefined) stipendioMese = Number(data.stipendio);
-            if(data.categorie) categorie = data.categorie;
-            if(data.dataProssimoStipendio) dataProssimoStipendio = data.dataProssimoStipendio;
+// Evento Login / Registrazione
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+        try {
+            await createUserWithEmailAndPassword(auth, email, password);
+        } catch (err) {
+            alert("Errore durante l'accesso: " + err.message);
         }
-        
-        categorie.sort((a, b) => a.localeCompare(b));
-        
-        if (!dataProssimoStipendio) {
-            dataProssimoStipendio = calcolaDataStipendioDefault();
-        }
-        
-        document.getElementById('input-data-prossimo-stipendio').value = dataProssimoStipendio;
-
-        aggiornaSelectCategorie();
-        caricaSpese();
-    }).catch((error) => {
-        console.error("Errore caricamento impostazioni: ", error);
-        if (!dataProssimoStipendio) {
-            dataProssimoStipendio = calcolaDataStipendioDefault();
-        }
-        document.getElementById('input-data-prossimo-stipendio').value = dataProssimoStipendio;
-        aggiornaSelectCategorie();
-        caricaSpese();
-    });
-}
-
-function salvaImpostazioniFirebase() {
-    db.collection("config").doc("impostazioni").set({
-        stipendio: stipendioMese,
-        categorie: categorie,
-        dataProssimoStipendio: dataProssimoStipendio
-    }).catch((error) => {
-        console.error("Errore salvataggio impostazioni: ", error);
-    });
-}
-
-function calcolaDataStipendioDefault() {
-    const adesso = new Date();
-    let anno = adesso.getFullYear();
-    let mese = adesso.getMonth();
-    let giorno = adesso.getDate();
-
-    let dataStip;
-    if (giorno >= 10) {
-        dataStip = new Date(anno, mese + 1, 10);
-    } else {
-        dataStip = new Date(anno, mese, 10);
     }
-    return dataStip.toISOString().split('T')[0];
+});
+
+// Logout
+document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+
+// Caricamento Dati Utente
+async function loadUserData() {
+    await loadSalary();
+    await loadCategories();
+    await loadExpenses();
+    calculateDashboard();
 }
 
-function aggiornaDataProssimoStipendio() {
-    let inputVal = document.getElementById('input-data-prossimo-stipendio').value;
-    if (inputVal) {
-        dataProssimoStipendio = inputVal;
-        salvaImpostazioniFirebase();
-        aggiornaInterfaccia();
+// Gestione Stipendio
+async function loadSalary() {
+    const docRef = doc(db, "users", currentUser.uid, "settings", "salary");
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        salaryData = docSnap.data();
+        document.getElementById('salary-date').value = salaryData.nextDate || "";
+        document.getElementById('salary-base').value = salaryData.base || 0;
+        document.getElementById('salary-extra').value = salaryData.extra || 0;
     }
 }
 
-function caricaSpese() {
-    db.collection("spese").orderBy("data", "desc").get().then((querySnapshot) => {
-        spese = [];
-        querySnapshot.forEach((doc) => {
-            spese.push({ id: doc.id, ...doc.data() });
-        });
-        aggiornaInterfaccia();
-    }).catch((error) => {
-        console.error("Errore caricamento spese: ", error);
-    });
-}
-
-// --- AGGIORNA INTERFACCIA DASHBOARD ---
-function aggiornaInterfaccia() {
-    document.getElementById('btn-stipendio').innerText = `€ ${stipendioMese.toFixed(2)}`;
-
-    let inputDataVal = document.getElementById('input-data-prossimo-stipendio').value;
-    if (inputDataVal) {
-        dataProssimoStipendio = inputDataVal;
-    } else if (dataProssimoStipendio) {
-        document.getElementById('input-data-prossimo-stipendio').value = dataProssimoStipendio;
-    }
-
-    let dataStipendioObj = dataProssimoStipendio ? new Date(dataProssimoStipendio) : new Date();
-    
-    let oggi = new Date();
-    oggi.setHours(0,0,0,0);
-    dataStipendioObj.setHours(0,0,0,0);
-
-    let diffTempo = dataStipendioObj - oggi;
-    let giorniMancanti = Math.ceil(diffTempo / (1000 * 60 * 60 * 24));
-    if (giorniMancanti < 1) giorniMancanti = 1;
-    document.getElementById('disp-giorni').innerText = giorniMancanti;
-
-    // Calcolo del periodo basato sul giorno dello stipendio (un mese prima della data del prossimo stipendio fino a oggi)
-    let dataInizioPeriodo = new Date(dataStipendioObj);
-    dataInizioPeriodo.setMonth(dataInizioPeriodo.getMonth() - 1);
-
-    let formatoDataStr = (d) => {
-        let y = d.getFullYear();
-        let m = String(d.getMonth() + 1).padStart(2, '0');
-        let day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
+document.getElementById('save-salary-btn').addEventListener('click', async () => {
+    salaryData = {
+        nextDate: document.getElementById('salary-date').value,
+        base: parseFloat(document.getElementById('salary-base').value) || 0,
+        extra: parseFloat(document.getElementById('salary-extra').value) || 0
     };
 
-    let dataInizioStr = formatoDataStr(dataInizioPeriodo);
-    let dataOggiStr = formatoDataStr(oggi);
+    const docRef = doc(db, "users", currentUser.uid, "settings", "salary");
+    await setDoc(docRef, salaryData);
+    alert("Dati stipendio salvati!");
+    calculateDashboard();
+});
 
-    let spesePeriodo = spese.filter(s => {
-        return s.data >= dataInizioStr && s.data <= dataOggiStr;
+// Gestione Categorie
+async function loadCategories() {
+    const q = collection(db, "users", currentUser.uid, "categories");
+    const querySnapshot = await getDocs(q);
+    categories = [];
+    querySnapshot.forEach((doc) => {
+        categories.push({ id: doc.id, ...doc.data() });
     });
-
-    let totaleSpesoPeriodo = spesePeriodo.reduce((sum, s) => sum + parseFloat(s.importo), 0);
-    let residuo = stipendioMese - totaleSpesoPeriodo;
-    document.getElementById('disp-residuo').innerText = `€ ${residuo.toFixed(2)}`;
-
-    let budgetGiornaliero = residuo / giorniMancanti;
-    document.getElementById('disp-budget-giorno').innerText = `€ ${budgetGiornaliero > 0 ? budgetGiornaliero.toFixed(2) : '0.00'}`;
-
-    let speseOggi = spese.filter(s => s.data === dataOggiStr);
-
-    let htmlOggi = '';
-    let totaleOggi = 0;
-
-    speseOggi.forEach(s => {
-        let importoNum = parseFloat(s.importo);
-        totaleOggi += importoNum;
-        let dataFormattata = s.data.split('-').reverse().join('/');
-        htmlOggi += `<tr>
-            <td>${dataFormattata}</td>
-            <td>${s.categoria}</td>
-            <td>€ ${importoNum.toFixed(2)}</td>
-            <td><button class="btn-danger" onclick="eliminaSpesa('${s.id}')">Elimina</button></td>
-        </tr>`;
-    });
-
-    document.getElementById('totale-oggi').innerText = `€ ${totaleOggi.toFixed(2)}`;
-    document.getElementById('lista-spese-oggi').innerHTML = htmlOggi || '<tr><td colspan="4" style="text-align:center;">Nessuna spesa registrata oggi.</td></tr>';
+    renderCategories();
 }
 
-// --- GESTIONE SPESE ---
-function aggiungiSpesa(event) {
-    event.preventDefault();
-    let importoInput = document.getElementById('importo').value.trim().replace(',', '.');
-    let importo = parseFloat(importoInput);
-    let categoria = document.getElementById('categoria').value;
-    let data = document.getElementById('data-spesa').value;
+function renderCategories() {
+    const select = document.getElementById('expense-category');
+    const list = document.getElementById('categories-list');
+    
+    select.innerHTML = '<option value="">Seleziona...</option>';
+    list.innerHTML = '';
 
-    if (isNaN(importo)) {
-        alert("Inserisci un importo valido.");
-        return;
+    categories.forEach(cat => {
+        select.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
+        list.innerHTML += `
+            <div class="category-item">
+                <span class="item-title">${cat.name}</span>
+                <button class="btn-danger" onclick="deleteCategory('${cat.id}')">Elimina</button>
+            </div>
+        `;
+    });
+}
+
+document.getElementById('add-category-btn').addEventListener('click', async () => {
+    const input = document.getElementById('new-category-name');
+    const name = input.value.trim();
+    if (!name) return;
+
+    await addDoc(collection(db, "users", currentUser.uid, "categories"), { name });
+    input.value = '';
+    await loadCategories();
+});
+
+window.deleteCategory = async (id) => {
+    if (confirm("Vuoi cancellare questa categoria?")) {
+        await deleteDoc(doc(db, "users", currentUser.uid, "categories", id));
+        await loadCategories();
     }
+};
 
-    let nuovaSpesa = { importo, categoria, data, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
+// Gestione Spese
+async function loadExpenses() {
+    const q = collection(db, "users", currentUser.uid, "expenses");
+    const querySnapshot = await getDocs(q);
+    expenses = [];
+    querySnapshot.forEach((doc) => {
+        expenses.push({ id: doc.id, ...doc.data() });
+    });
+    renderExpenses();
+}
 
-    db.collection("spese").add(nuovaSpesa).then(() => {
-        document.getElementById('form-spesa').reset();
-        const oggi = new Date().toISOString().split('T')[0];
-        document.getElementById('data-spesa').value = oggi;
-        caricaSpese();
-    }).catch((error) => {
-        console.error("Errore salvataggio spesa: ", error);
+function renderExpenses() {
+    const list = document.getElementById('recent-expenses-list');
+    list.innerHTML = '';
+
+    const sorted = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+
+    sorted.forEach(exp => {
+        list.innerHTML += `
+            <div class="expense-item">
+                <div class="item-info">
+                    <span class="item-title">${exp.category}</span>
+                    <span class="item-sub">${exp.date}</span>
+                </div>
+                <div class="item-actions">
+                    <strong style="margin-right:8px;">€ ${parseFloat(exp.amount).toFixed(2)}</strong>
+                    <button class="btn-edit" onclick="editExpense('${exp.id}')">✏️</button>
+                    <button class="btn-danger" onclick="deleteExpense('${exp.id}')">🗑️</button>
+                </div>
+            </div>
+        `;
     });
 }
 
-function eliminaSpesa(id) {
-    if(confirm("Sei sicuro di voler eliminare questa spesa?")) {
-        db.collection("spese").doc(id).delete().then(() => {
-            caricaSpese();
-        }).catch((error) => {
-            console.error("Errore eliminazione spesa: ", error);
-        });
-    }
-}
+document.getElementById('expense-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('edit-expense-id').value;
+    const amount = parseFloat(document.getElementById('expense-amount').value);
+    const date = document.getElementById('expense-date').value;
+    const category = document.getElementById('expense-category').value;
 
-// --- MODALE STIPENDIO ---
-function apriModaleStipendio() {
-    document.getElementById('input-nuovo-stipendio').value = '';
-    document.getElementById('modale-stipendio').style.display = 'flex';
-}
-function chiudiModaleStipendio() {
-    document.getElementById('modale-stipendio').style.display = 'none';
-}
-function salvaStipendio() {
-    let rawVal = document.getElementById('input-nuovo-stipendio').value.trim();
-    if (!rawVal) return;
+    const data = { amount, date, category };
 
-    let nuovoValore = stipendioMese;
-
-    if (rawVal.startsWith('+')) {
-        let incrementoStr = rawVal.substring(1).replace(',', '.');
-        let incremento = parseFloat(incrementoStr);
-        if (!isNaN(incremento)) nuovoValore += incremento;
-    } else if (rawVal.startsWith('-')) {
-        let decrementoStr = rawVal.substring(1).replace(',', '.');
-        let decremento = parseFloat(decrementoStr);
-        if (!isNaN(decremento)) nuovoValore -= decremento;
+    if (id) {
+        await updateDoc(doc(db, "users", currentUser.uid, "expenses", id), data);
     } else {
-        let parsedStr = rawVal.replace(',', '.');
-        let parsed = parseFloat(parsedStr);
-        if (!isNaN(parsed)) nuovoValore = parsed;
+        await addDoc(collection(db, "users", currentUser.uid, "expenses"), data);
     }
 
-    stipendioMese = nuovoValore;
-    salvaImpostazioniFirebase();
-    chiudiModaleStipendio();
-    aggiornaInterfaccia();
+    resetForm();
+    await loadExpenses();
+    calculateDashboard();
+});
+
+window.editExpense = (id) => {
+    const exp = expenses.find(e => e.id === id);
+    if (!exp) return;
+
+    document.getElementById('edit-expense-id').value = exp.id;
+    document.getElementById('expense-amount').value = exp.amount;
+    document.getElementById('expense-date').value = exp.date;
+    document.getElementById('expense-category').value = exp.category;
+
+    document.getElementById('form-expense-title').innerText = "Modifica Spesa";
+    document.getElementById('cancel-edit-btn').classList.remove('hidden');
+};
+
+document.getElementById('cancel-edit-btn').addEventListener('click', resetForm);
+
+function resetForm() {
+    document.getElementById('edit-expense-id').value = '';
+    document.getElementById('expense-form').reset();
+    document.getElementById('expense-date').valueAsDate = new Date();
+    document.getElementById('form-expense-title').innerText = "Aggiungi Nuova Spesa";
+    document.getElementById('cancel-edit-btn').classList.add('hidden');
 }
 
-// --- GESTIONE CATEGORIE ---
-function aggiornaSelectCategorie() {
-    categorie.sort((a, b) => a.localeCompare(b));
-
-    let selectSpesa = document.getElementById('categoria');
-    let selectFiltro = document.getElementById('filtro-categoria');
-    
-    let htmlSelect = '';
-    let htmlFiltro = '<option value="">Tutte le categorie</option>';
-    
-    categorie.forEach(cat => {
-        htmlSelect += `<option value="${cat}">${cat}</option>`;
-        htmlFiltro += `<option value="${cat}">${cat}</option>`;
-    });
-    
-    selectSpesa.innerHTML = htmlSelect;
-    selectFiltro.innerHTML = htmlFiltro;
-
-    let htmlModale = '';
-    categorie.forEach(cat => {
-        htmlModale += `<li style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span>${cat}</span>
-            <button class="btn-danger" onclick="eliminaCategoria('${cat}')">Elimina</button>
-        </li>`;
-    });
-    
-    let listaModale = document.getElementById('lista-categorie-modale');
-    listaModale.style.marginTop = "15px";
-    listaModale.innerHTML = htmlModale;
-}
-
-function apriModaleCategoria() {
-    document.getElementById('modale-categoria').style.display = 'flex';
-}
-function chiudiModaleCategoria() {
-    document.getElementById('modale-categoria').style.display = 'none';
-}
-function aggiungiCategoria() {
-    let inputVal = document.getElementById('nuova-cat-nome').value.trim();
-    if (!inputVal) return;
-
-    let nomeCat = inputVal.charAt(0).toUpperCase() + inputVal.slice(1).toLowerCase();
-
-    if(categorie.includes(nomeCat)) {
-        alert("Questa categoria esiste già!");
-        return;
+window.deleteExpense = async (id) => {
+    if (confirm("Vuoi cancellare questa spesa?")) {
+        await deleteDoc(doc(db, "users", currentUser.uid, "expenses", id));
+        await loadExpenses();
+        calculateDashboard();
     }
+};
 
-    categorie.push(nomeCat);
-    categorie.sort((a, b) => a.localeCompare(b));
+// Algoritmo di Calcolo Dashboard & Giorni Mancanti
+function calculateDashboard() {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const todayStr = today.toISOString().split('T')[0];
 
-    document.getElementById('nuova-cat-nome').value = '';
-    salvaImpostazioniFirebase();
-    aggiornaSelectCategorie();
-}
-function eliminaCategoria(cat) {
-    if(categorie.length <= 1) {
-        alert("Devi mantenere almeno una categoria.");
-        return;
-    }
-    if(confirm(`Vuoi davvero eliminare la categoria "${cat}"?`)) {
-        categorie = categorie.filter(c => c !== cat);
-        salvaImpostazioniFirebase();
-        aggiornaSelectCategorie();
-    }
-}
+    // Speso Oggi
+    const spentToday = expenses
+        .filter(e => e.date === todayStr)
+        .reduce((sum, e) => sum + e.amount, 0);
+    document.getElementById('spent-today').innerText = `€ ${spentToday.toFixed(2)}`;
 
-// --- STATISTICHE E FILTRI AVANZATI ---
-function cambiaTipoFiltro() {
-    let tipo = document.getElementById('filtro-tipo').value;
-    document.getElementById('box-giorno').style.display = tipo === 'giorno' ? 'block' : 'none';
-    document.getElementById('box-settimana').style.display = tipo === 'settimana' ? 'block' : 'none';
-    document.getElementById('box-intervallo').style.display = tipo === 'periodo' ? 'block' : 'none';
-    document.getElementById('box-mese').style.display = tipo === 'mese' ? 'block' : 'none';
-    document.getElementById('box-anno').style.display = tipo === 'anno' ? 'block' : 'none';
+    // Calcolo Giorni Mancanti
+    if (!salaryData.nextDate) return;
+
+    const nextSalary = new Date(salaryData.nextDate);
+    nextSalary.setHours(0,0,0,0);
+
+    const diffTime = nextSalary - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    // Se seleziona settimana e il campo è vuoto, imposta la settimana corrente
-    if (tipo === 'settimana' && !document.getElementById('filtro-settimana-val').value) {
-        let now = new Date();
-        let year = now.getFullYear();
-        let d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-        let dayNum = d.getUTCDay() || 7;
-        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-        let yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-        let weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
-        let weekStr = year + "-W" + (weekNo < 10 ? "0" : "") + weekNo;
-        document.getElementById('filtro-settimana-val').value = weekStr;
-    }
+    document.getElementById('days-left').innerText = diffDays > 0 ? diffDays : 0;
 
-    applicaFiltri();
-}
+    // Calcolo del ciclo mensile dello stipendio
+    // Troviamo il mese precedente dello stipendio come data d'inizio del periodo
+    const lastSalaryDate = new Date(nextSalary);
+    lastSalaryDate.setMonth(lastSalaryDate.getMonth() - 1);
 
-function getDatesForWeek(weekStr) {
-    let [yearStr, weekPart] = weekStr.split('-W');
-    let year = parseInt(yearStr);
-    let week = parseInt(weekPart);
-    
-    let jan4 = new Date(year, 0, 4);
-    let dayJan4 = jan4.getDay() || 7;
-    let startOfWeek1 = new Date(jan4);
-    startOfWeek1.setDate(jan4.getDate() - dayJan4 + 1);
-    
-    let startWeek = new Date(startOfWeek1);
-    startWeek.setDate(startOfWeek1.getDate() + (week - 1) * 7);
-    startWeek.setHours(0,0,0,0);
-    
-    let endWeek = new Date(startWeek);
-    endWeek.setDate(startWeek.getDate() + 6);
-    endWeek.setHours(23,59,59,999);
-    
-    return { start: startWeek, end: endWeek };
-}
+    // Spese nel periodo di stipendio corrente (da ultimo stipendio a oggi)
+    const currentPeriodExpenses = expenses.filter(e => {
+        const expDate = new Date(e.date);
+        return expDate >= lastSalaryDate && expDate <= today;
+    }).reduce((sum, e) => sum + e.amount, 0);
 
-function applicaFiltri() {
-    let tipoFiltro = document.getElementById('filtro-tipo').value;
-    let catFiltro = document.getElementById('filtro-categoria').value;
-    let testoRicerca = document.getElementById('filtro-ricerca-testo').value.toLowerCase().replace(',', '.');
+    const totalSalary = (salaryData.base || 0) + (salaryData.extra || 0);
+    const residue = totalSalary - currentPeriodExpenses;
+    document.getElementById('salary-residue').innerText = `€ ${residue.toFixed(2)}`;
 
-    let speseFiltrate = spese.filter(s => {
-        let matchPeriodo = true;
-        let dataSpesa = new Date(s.data);
-
-        if (tipoFiltro === 'giorno') {
-            let valGiorno = document.getElementById('filtro-data-singola').value;
-            if (valGiorno) matchPeriodo = (s.data === valGiorno);
-            else matchPeriodo = false;
-        } else if (tipoFiltro === 'settimana') {
-            let valSettimana = document.getElementById('filtro-settimana-val').value;
-            if (valSettimana) {
-                let range = getDatesForWeek(valSettimana);
-                matchPeriodo = (dataSpesa >= range.start && dataSpesa <= range.end);
-            } else {
-                matchPeriodo = false;
-            }
-        } else if (tipoFiltro === 'mese') {
-            let valMese = document.getElementById('filtro-mese-val').value;
-            if (valMese) {
-                let [anno, mese] = valMese.split('-');
-                matchPeriodo = (dataSpesa.getFullYear() == anno && (dataSpesa.getMonth() + 1) == mese);
-            } else {
-                matchPeriodo = false;
-            }
-        } else if (tipoFiltro === 'anno') {
-            let valAnno = document.getElementById('filtro-anno-val').value;
-            if (valAnno) {
-                matchPeriodo = (dataSpesa.getFullYear() == valAnno);
-            } else {
-                matchPeriodo = false;
-            }
-        } else if (tipoFiltro === 'periodo') {
-            let da = document.getElementById('filtro-data-da').value;
-            let a = document.getElementById('filtro-data-a').value;
-            if (da && a) {
-                matchPeriodo = (s.data >= da && s.data <= a);
-            } else {
-                matchPeriodo = false;
-            }
-        }
-
-        let matchCategoria = catFiltro ? (s.categoria === catFiltro) : true;
-        let matchTesto = testoRicerca ? (s.importo.toString().includes(testoRicerca) || s.categoria.toLowerCase().includes(testoRicerca) || s.data.includes(testoRicerca)) : true;
-
-        return matchPeriodo && matchCategoria && matchTesto;
-    });
-
-    let totaleFiltrato = speseFiltrate.reduce((sum, s) => sum + parseFloat(s.importo), 0);
-    document.getElementById('stat-totale-filtrato').innerText = `€ ${totaleFiltrato.toFixed(2)}`;
-
-    let catTotali = {};
-    speseFiltrate.forEach(s => {
-        catTotali[s.categoria] = (catTotali[s.categoria] || 0) + parseFloat(s.importo);
-    });
-
-    let htmlCatTotali = '';
-    for (let [cat, tot] of Object.entries(catTotali)) {
-        htmlCatTotali += `<div class="cat-total-item"><strong>${cat}:</strong> € ${tot.toFixed(2)}</div>`;
-    }
-    document.getElementById('stat-per-categoria').innerHTML = htmlCatTotali || '<p style="font-size:0.85rem; color:#666;">Nessun dato per le categorie filtrate.</p>';
-
-    let htmlTabella = '';
-    speseFiltrate.forEach(s => {
-        let dataFormattata = s.data.split('-').reverse().join('/');
-        htmlTabella += `<tr>
-            <td>${dataFormattata}</td>
-            <td>${s.categoria}</td>
-            <td>€ ${parseFloat(s.importo).toFixed(2)}</td>
-            <td><button class="btn-danger" onclick="eliminaSpesa('${s.id}')">Elimina</button></td>
-        </tr>`;
-    });
-    document.getElementById('lista-spese-filtrate').innerHTML = htmlTabella || '<tr><td colspan="4" style="text-align:center;">Nessuna spesa trovata con i filtri selezionati.</td></tr>';
-}
-
-// --- REGISTRAZIONE SERVICE WORKER PER LA PWA ---
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(registration => {
-                console.log('Service Worker registrato con successo con scope: ', registration.scope);
-            })
-            .catch(error => {
-                console.log('Registrazione Service Worker fallita: ', error);
-            });
-    });
+    // Budget giornaliero
+    const daysRemaining = diffDays > 0 ? diffDays : 1;
+    const dailyBudget = residue > 0 ? (residue / daysRemaining) : 0;
+    document.getElementById('daily-budget').innerText = `€ ${dailyBudget.toFixed(2)}`;
 }
