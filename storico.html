@@ -1,1 +1,177 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storico Spese</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
+    <header>
+        <h1>Storico & Filtri</h1>
+    </header>
+
+    <div class="container">
+        <!-- Filtri del Periodo -->
+        <div class="card">
+            <h3>Seleziona Periodo</h3>
+            <div class="form-group">
+                <label>Filtro Rapido</label>
+                <select id="quick-filter">
+                    <option value="today">Oggi</option>
+                    <option value="week">Questa Settimana</option>
+                    <option value="month" selected>Questo Mese</option>
+                    <option value="year">Questo Anno</option>
+                    <option value="custom">Periodo Personalizzato</option>
+                </select>
+            </div>
+
+            <!-- Selezione periodo da/a -->
+            <div id="custom-date-container" class="hidden">
+                <div class="metric-grid">
+                    <div class="form-group">
+                        <label>Da</label>
+                        <input type="date" id="date-from">
+                    </div>
+                    <div class="form-group">
+                        <label>A</label>
+                        <input type="date" id="date-to">
+                    </div>
+                </div>
+            </div>
+
+            <button id="apply-filter-btn" class="btn" style="margin-top:6px;">Applica Filtro</button>
+        </div>
+
+        <!-- Risultati Totali -->
+        <div class="card">
+            <h3>Risultati Periodo</h3>
+            <div class="metric-box" style="margin-bottom: 12px;">
+                <span>Totale Speso nel Periodo</span>
+                <strong id="filter-total" style="font-size: 22px;">€ 0.00</strong>
+            </div>
+
+            <h4>Totali per Categoria</h4>
+            <div id="category-totals-list" style="margin-top: 8px;"></div>
+        </div>
+
+        <!-- Elenco Spese Filtrate -->
+        <div class="card">
+            <h3>Dettaglio Spese</h3>
+            <div id="filtered-expenses-list"></div>
+        </div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <nav class="nav-bar">
+        <a href="index.html" class="nav-item">
+            <span style="font-size: 18px;">🏠</span> Dashboard
+        </a>
+        <a href="storico.html" class="nav-item active">
+            <span style="font-size: 18px;">📊</span> Storico e Filtri
+        </a>
+    </nav>
+
+    <script type="module">
+        import { auth, db, onAuthStateChanged, collection, getDocs } from "./firebase-config.js";
+
+        let expenses = [];
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const q = collection(db, "users", user.uid, "expenses");
+                const querySnapshot = await getDocs(q);
+                expenses = [];
+                querySnapshot.forEach((doc) => expenses.push({ id: doc.id, ...doc.data() }));
+                applyFilter();
+            } else {
+                window.location.href = "index.html";
+            }
+        });
+
+        document.getElementById('quick-filter').addEventListener('change', (e) => {
+            if (e.target.value === 'custom') {
+                document.getElementById('custom-date-container').classList.remove('hidden');
+            } else {
+                document.getElementById('custom-date-container').classList.add('hidden');
+            }
+        });
+
+        document.getElementById('apply-filter-btn').addEventListener('click', applyFilter);
+
+        function applyFilter() {
+            const type = document.getElementById('quick-filter').value;
+            const now = new Date();
+            let from, to;
+
+            if (type === 'today') {
+                from = new Date(now.setHours(0,0,0,0));
+                to = new Date(now.setHours(23,59,59,999));
+            } else if (type === 'week') {
+                const day = now.getDay() || 7;
+                from = new Date(now.setDate(now.getDate() - day + 1));
+                from.setHours(0,0,0,0);
+                to = new Date();
+            } else if (type === 'month') {
+                from = new Date(now.getFullYear(), now.getMonth(), 1);
+                to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+            } else if (type === 'year') {
+                from = new Date(now.getFullYear(), 0, 1);
+                to = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+            } else if (type === 'custom') {
+                const fVal = document.getElementById('date-from').value;
+                const tVal = document.getElementById('date-to').value;
+                if (!fVal || !tVal) return alert("Seleziona entrambe le date!");
+                from = new Date(fVal);
+                to = new Date(tVal);
+                to.setHours(23,59,59);
+            }
+
+            const filtered = expenses.filter(e => {
+                const d = new Date(e.date);
+                return d >= from && d <= to;
+            });
+
+            renderResults(filtered);
+        }
+
+        function renderResults(list) {
+            const total = list.reduce((sum, e) => sum + e.amount, 0);
+            document.getElementById('filter-total').innerText = `€ ${total.toFixed(2)}`;
+
+            // Raggruppamento per Categoria
+            const catTotals = {};
+            list.forEach(e => {
+                catTotals[e.category] = (catTotals[e.category] || 0) + e.amount;
+            });
+
+            const catContainer = document.getElementById('category-totals-list');
+            catContainer.innerHTML = '';
+            for (const [cat, sum] of Object.entries(catTotals)) {
+                catContainer.innerHTML += `
+                    <div class="expense-item">
+                        <span class="item-title">${cat}</span>
+                        <strong>€ ${sum.toFixed(2)}</strong>
+                    </div>
+                `;
+            }
+
+            // Dettaglio Lista
+            const listContainer = document.getElementById('filtered-expenses-list');
+            listContainer.innerHTML = '';
+            list.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
+                listContainer.innerHTML += `
+                    <div class="expense-item">
+                        <div class="item-info">
+                            <span class="item-title">${exp.category}</span>
+                            <span class="item-sub">${exp.date}</span>
+                        </div>
+                        <strong>€ ${parseFloat(exp.amount).toFixed(2)}</strong>
+                    </div>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>
