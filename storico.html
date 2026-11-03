@@ -74,7 +74,7 @@
             <div id="category-totals-list" style="margin-top: 8px;"></div>
         </div>
 
-        <!-- Elenco Spese Filtrate -->
+        <!-- Elenco Spese Filtrate con Pulsanti Modifica ed Elimina -->
         <div class="card">
             <h3>Dettaglio Spese</h3>
             <div id="filtered-expenses-list"></div>
@@ -96,14 +96,13 @@
     <script src="https://npmcdn.com/flatpickr/dist/l10n/it.js"></script>
 
     <script type="module">
-        import { auth, db, onAuthStateChanged, collection, getDocs } from "./firebase-config.js";
+        import { auth, db, onAuthStateChanged, collection, getDocs, deleteDoc, doc } from "./firebase-config.js";
 
         let expenses = [];
         let rangePickerInstance = null;
         let selectedCustomFrom = null;
         let selectedCustomTo = null;
 
-        // Inizializzazione date correnti
         const now = new Date();
         const curYear = now.getFullYear();
         const curMonth = String(now.getMonth() + 1).padStart(2, '0');
@@ -113,7 +112,6 @@
         document.getElementById('select-month').value = `${curYear}-${curMonth}`;
         document.getElementById('select-week').value = `${curYear}-W01`;
 
-        // Inizializzazione Calendario Unico Range Inizio/Fine
         rangePickerInstance = flatpickr("#date-range-picker", {
             mode: "range",
             locale: "it",
@@ -130,24 +128,28 @@
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                const q = collection(db, "spese");
-                const querySnapshot = await getDocs(q);
-                expenses = [];
-                querySnapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    expenses.push({ 
-                        id: docSnap.id, 
-                        amount: parseFloat(data.importo || data.amount || 0),
-                        date: data.data || data.date,
-                        category: data.categoria || data.category 
-                    });
-                });
-                populateYearsDropdown();
-                applyFilter();
+                await loadExpensesFromDB();
             } else {
                 window.location.href = "index.html";
             }
         });
+
+        async function loadExpensesFromDB() {
+            const q = collection(db, "spese");
+            const querySnapshot = await getDocs(q);
+            expenses = [];
+            querySnapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                expenses.push({ 
+                    id: docSnap.id, 
+                    amount: parseFloat(data.importo || data.amount || 0),
+                    date: data.data || data.date,
+                    category: data.categoria || data.category 
+                });
+            });
+            populateYearsDropdown();
+            applyFilter();
+        }
 
         function populateYearsDropdown() {
             const yearsSet = new Set();
@@ -297,11 +299,38 @@
                             <span class="item-title">${exp.category || "Altro"}</span>
                             <span class="item-sub">${exp.date}</span>
                         </div>
-                        <strong>€ ${parseFloat(exp.amount).toFixed(2)}</strong>
+                        <div class="item-actions">
+                            <strong style="margin-right:8px;">€ ${parseFloat(exp.amount).toFixed(2)}</strong>
+                            <button class="btn-edit" onclick="editExpenseRedirect('${exp.id}', '${exp.amount}', '${exp.date}', '${exp.category}')">✏️</button>
+                            <button class="btn-danger" onclick="deleteExpenseFromHistory('${exp.id}')">🗑️</button>
+                        </div>
                     </div>
                 `;
             });
         }
+
+        // Funzione per reindirizzare alla Dashboard con i dati pronti per la modifica
+        window.editExpenseRedirect = (id, amount, date, category) => {
+            // Salviamo temporaneamente i dati nel localStorage del browser per passarli alla dashboard
+            localStorage.setItem('edit_id', id);
+            localStorage.setItem('edit_amount', amount);
+            localStorage.setItem('edit_date', date);
+            localStorage.setItem('edit_category', category);
+            // Ti porta direttamente alla dashboard
+            window.location.href = "index.html";
+        };
+
+        // Funzione per eliminare una spesa direttamente dallo storico
+        window.deleteExpenseFromHistory = async (id) => {
+            if (confirm("Vuoi cancellare questa spesa?")) {
+                try {
+                    await deleteDoc(doc(db, "spese", id));
+                    await loadExpensesFromDB();
+                } catch (err) {
+                    alert("Errore durante l'eliminazione: " + err.message);
+                }
+            }
+        };
     </script>
 </body>
 </html>
