@@ -14,7 +14,9 @@ const todayLocal = new Date();
 const year = todayLocal.getFullYear();
 const month = String(todayLocal.getMonth() + 1).padStart(2, '0');
 const day = String(todayLocal.getDate()).padStart(2, '0');
-document.getElementById('expense-date').value = `${year}-${month}-${day}`;
+const todayStr = `${year}-${month}-${day}`;
+
+document.getElementById('expense-date').value = todayStr;
 
 // Controllo Stato Autenticazione
 onAuthStateChanged(auth, async (user) => {
@@ -148,7 +150,7 @@ document.getElementById('quick-add-category-btn').addEventListener('click', asyn
 
     if (!categories.includes(trimmedName)) {
         categories.push(trimmedName);
-        categories.sort(); // Ordine alfabetico
+        categories.sort();
         
         const docRef = doc(db, "config", "impostazioni");
         const docSnap = await getDoc(docRef);
@@ -156,7 +158,7 @@ document.getElementById('quick-add-category-btn').addEventListener('click', asyn
         currentData.categorie = categories;
         
         await setDoc(docRef, currentData);
-        renderCategories(trimmedName); // Seleziona subito la nuova categoria appena aggiunta
+        renderCategories(trimmedName);
     } else {
         alert("Questa categoria esiste già!");
         document.getElementById('expense-category').value = trimmedName;
@@ -188,9 +190,15 @@ function renderExpenses() {
     const list = document.getElementById('recent-expenses-list');
     list.innerHTML = '';
 
-    const sorted = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+    // Filtriamo solo le spese che hanno la data uguale a oggi
+    const todayExpenses = expenses.filter(exp => exp.date === todayStr);
 
-    sorted.forEach(exp => {
+    if (todayExpenses.length === 0) {
+        list.innerHTML = '<div style="font-size: 12px; color: #888; text-align: center; padding: 10px;">Nessuna spesa registrata oggi.</div>';
+        return;
+    }
+
+    todayExpenses.forEach(exp => {
         list.innerHTML += `
             <div class="expense-item">
                 <div class="item-info">
@@ -245,8 +253,7 @@ document.getElementById('cancel-edit-btn').addEventListener('click', resetForm);
 function resetForm() {
     document.getElementById('edit-expense-id').value = '';
     document.getElementById('expense-form').reset();
-    
-    document.getElementById('expense-date').value = `${year}-${month}-${day}`;
+    document.getElementById('expense-date').value = todayStr;
 
     document.getElementById('form-expense-title').innerText = "Aggiungi Nuova Spesa";
     document.getElementById('cancel-edit-btn').classList.add('hidden');
@@ -262,8 +269,6 @@ window.deleteExpense = async (id) => {
 
 // Calcoli Dashboard
 function calculateDashboard() {
-    const todayStr = `${year}-${month}-${day}`;
-
     const spentToday = expenses
         .filter(e => e.date === todayStr)
         .reduce((sum, e) => sum + e.amount, 0);
