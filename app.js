@@ -115,13 +115,23 @@ document.getElementById('save-salary-btn').addEventListener('click', async () =>
     calculateDashboard();
 });
 
-// Gestione Categorie
+// Funzione di utilità per formattare la prima lettera maiuscola (Capitalize)
+function capitalize(str) {
+    if (!str) return "";
+    str = str.trim();
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
+// Gestione Categorie con pulizia e normalizzazione automatica
 async function loadCategories() {
     try {
         const docRef = doc(db, "config", "impostazioni");
         const docSnap = await getDoc(docRef);
         if (docSnap.exists() && docSnap.data().categorie) {
-            categories = docSnap.data().categorie;
+            // Normalizziamo tutte le categorie esistenti per eliminare i duplicati con maiuscole/minuscole
+            let rawCategories = docSnap.data().categorie;
+            let normalizedSet = new Set(rawCategories.map(c => capitalize(c)));
+            categories = Array.from(normalizedSet).sort();
         } else {
             categories = [];
         }
@@ -141,29 +151,50 @@ function renderCategories(selectedCategory = "") {
     });
 }
 
-// Aggiunta Rapida Categoria con Pulsante Arancione +
+// Aggiunta o Eliminazione Rapida Categoria con Pulsante Arancione +
 document.getElementById('quick-add-category-btn').addEventListener('click', async () => {
-    const name = prompt("Inserisci il nome della nuova categoria:");
-    if (!name || !name.trim()) return;
+    const inputName = prompt("Inserisci il nome della nuova categoria (o scrivi una categoria esistente preceduta da '-' es. '-Sigarette' per eliminarla):");
+    if (!inputName || !inputName.trim()) return;
     
-    const trimmedName = name.trim();
+    let trimmed = inputName.trim();
 
-    if (!categories.includes(trimmedName)) {
-        categories.push(trimmedName);
+    // Se l'utente mette il segno meno davanti, gestiamo l'eliminazione
+    if (trimmed.startsWith('-')) {
+        let targetCat = capitalize(trimmed.substring(1));
+        const index = categories.indexOf(targetCat);
+        if (index > -1) {
+            if (confirm(`Vuoi davvero eliminare la categoria "${targetCat}"?`)) {
+                categories.splice(index, 1);
+                await saveCategoriesToFirebase();
+                renderCategories();
+                alert(`Categoria "${targetCat}" eliminata.`);
+            }
+        } else {
+            alert(`La categoria "${targetCat}" non è stata trovata.`);
+        }
+        return;
+    }
+
+    const formattedName = capitalize(trimmed);
+
+    if (!categories.includes(formattedName)) {
+        categories.push(formattedName);
         categories.sort();
-        
-        const docRef = doc(db, "config", "impostazioni");
-        const docSnap = await getDoc(docRef);
-        let currentData = docSnap.exists() ? docSnap.data() : {};
-        currentData.categorie = categories;
-        
-        await setDoc(docRef, currentData);
-        renderCategories(trimmedName);
+        await saveCategoriesToFirebase();
+        renderCategories(formattedName);
     } else {
         alert("Questa categoria esiste già!");
-        document.getElementById('expense-category').value = trimmedName;
+        document.getElementById('expense-category').value = formattedName;
     }
 });
+
+async function saveCategoriesToFirebase() {
+    const docRef = doc(db, "config", "impostazioni");
+    const docSnap = await getDoc(docRef);
+    let currentData = docSnap.exists() ? docSnap.data() : {};
+    currentData.categorie = categories;
+    await setDoc(docRef, currentData);
+}
 
 // Gestione Spese
 async function loadExpenses() {
@@ -190,7 +221,6 @@ function renderExpenses() {
     const list = document.getElementById('recent-expenses-list');
     list.innerHTML = '';
 
-    // Filtriamo solo le spese che hanno la data uguale a oggi
     const todayExpenses = expenses.filter(exp => exp.date === todayStr);
 
     if (todayExpenses.length === 0) {
