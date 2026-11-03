@@ -9,7 +9,7 @@ let categories = [];
 let expenses = [];
 let salaryData = { nextDate: "", base: 0, extra: 0, extraExpression: "" };
 
-// Inizializzazione della Data di Oggi per l'Input Spesa nel formato locale corretto
+// Data di Oggi locale
 const todayLocal = new Date();
 const year = todayLocal.getFullYear();
 const month = String(todayLocal.getMonth() + 1).padStart(2, '0');
@@ -30,7 +30,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// Evento Login / Registrazione
+// Login / Registrazione
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('email').value;
@@ -50,7 +50,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 // Logout
 document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
-// Caricamento Dati Dalle Collezioni Firestore
+// Caricamento Dati
 async function loadUserData() {
     await loadSalary();
     await loadCategories();
@@ -129,54 +129,39 @@ async function loadCategories() {
     }
 }
 
-function renderCategories() {
+function renderCategories(selectedCategory = "") {
     const select = document.getElementById('expense-category');
-    const list = document.getElementById('categories-list');
-    
     select.innerHTML = '<option value="">Seleziona...</option>';
-    list.innerHTML = '';
 
-    categories.forEach((catName, index) => {
-        select.innerHTML += `<option value="${catName}">${catName}</option>`;
-        list.innerHTML += `
-            <div class="category-item">
-                <span class="item-title">${catName}</span>
-                <button class="btn-danger" onclick="deleteCategory(${index})">Elimina</button>
-            </div>
-        `;
+    categories.forEach((catName) => {
+        const isSelected = catName === selectedCategory ? 'selected' : '';
+        select.innerHTML += `<option value="${catName}" ${isSelected}>${catName}</option>`;
     });
 }
 
-document.getElementById('add-category-btn').addEventListener('click', async () => {
-    const input = document.getElementById('new-category-name');
-    const name = input.value.trim();
-    if (!name) return;
+// Aggiunta Rapida Categoria con Pulsante Arancione +
+document.getElementById('quick-add-category-btn').addEventListener('click', async () => {
+    const name = prompt("Inserisci il nome della nuova categoria:");
+    if (!name || !name.trim()) return;
+    
+    const trimmedName = name.trim();
 
-    if (!categories.includes(name)) {
-        categories.push(name);
+    if (!categories.includes(trimmedName)) {
+        categories.push(trimmedName);
+        categories.sort(); // Ordine alfabetico
+        
         const docRef = doc(db, "config", "impostazioni");
         const docSnap = await getDoc(docRef);
         let currentData = docSnap.exists() ? docSnap.data() : {};
         currentData.categorie = categories;
+        
         await setDoc(docRef, currentData);
-        input.value = '';
-        renderCategories();
+        renderCategories(trimmedName); // Seleziona subito la nuova categoria appena aggiunta
     } else {
         alert("Questa categoria esiste già!");
+        document.getElementById('expense-category').value = trimmedName;
     }
 });
-
-window.deleteCategory = async (index) => {
-    if (confirm("Vuoi cancellare questa categoria?")) {
-        categories.splice(index, 1);
-        const docRef = doc(db, "config", "impostazioni");
-        const docSnap = await getDoc(docRef);
-        let currentData = docSnap.exists() ? docSnap.data() : {};
-        currentData.categorie = categories;
-        await setDoc(docRef, currentData);
-        renderCategories();
-    }
-};
 
 // Gestione Spese
 async function loadExpenses() {
@@ -261,12 +246,7 @@ function resetForm() {
     document.getElementById('edit-expense-id').value = '';
     document.getElementById('expense-form').reset();
     
-    // Ripristina la data odierna corretta
-    const tLocal = new Date();
-    const y = tLocal.getFullYear();
-    const m = String(tLocal.getMonth() + 1).padStart(2, '0');
-    const d = String(tLocal.getDate()).padStart(2, '0');
-    document.getElementById('expense-date').value = `${y}-${m}-${d}`;
+    document.getElementById('expense-date').value = `${year}-${month}-${day}`;
 
     document.getElementById('form-expense-title').innerText = "Aggiungi Nuova Spesa";
     document.getElementById('cancel-edit-btn').classList.add('hidden');
@@ -282,7 +262,7 @@ window.deleteExpense = async (id) => {
 
 // Calcoli Dashboard
 function calculateDashboard() {
-    const todayStr = `${year}-${month}-${day}`; // Stringa esatta YYYY-MM-DD locale
+    const todayStr = `${year}-${month}-${day}`;
 
     const spentToday = expenses
         .filter(e => e.date === todayStr)
