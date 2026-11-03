@@ -9,8 +9,12 @@ let categories = [];
 let expenses = [];
 let salaryData = { nextDate: "", base: 0, extra: 0, extraExpression: "" };
 
-// Inizializzazione della Data di Oggi per l'Input Spesa
-document.getElementById('expense-date').valueAsDate = new Date();
+// Inizializzazione della Data di Oggi per l'Input Spesa nel formato locale corretto
+const todayLocal = new Date();
+const year = todayLocal.getFullYear();
+const month = String(todayLocal.getMonth() + 1).padStart(2, '0');
+const day = String(todayLocal.getDate()).padStart(2, '0');
+document.getElementById('expense-date').value = `${year}-${month}-${day}`;
 
 // Controllo Stato Autenticazione
 onAuthStateChanged(auth, async (user) => {
@@ -63,8 +67,6 @@ async function loadSalary() {
             const data = docSnap.data();
             salaryData.nextDate = data.dataProssimoStipendio || "";
             salaryData.base = parseFloat(data.stipendio || 0);
-            
-            // Gestiamo il campo extra sia se è un numero sia se è una stringa/espressione
             salaryData.extraExpression = data.extraExpression || (data.extra !== undefined ? data.extra.toString() : "0");
 
             document.getElementById('salary-date').value = salaryData.nextDate;
@@ -83,8 +85,6 @@ document.getElementById('save-salary-btn').addEventListener('click', async () =>
 
     let evaluatedExtra = 0;
     try {
-        // Valuta in sicurezza l'espressione matematica inserita (es. "139.20 + 90")
-        // Permettiamo solo numeri, spazi, punti, più e meno per sicurezza
         const sanitized = extraInput.replace(/[^0-9+\-.\s]/g, '');
         evaluatedExtra = sanitized ? eval(sanitized) : 0;
     } catch (err) {
@@ -106,7 +106,7 @@ document.getElementById('save-salary-btn').addEventListener('click', async () =>
     currentData.dataProssimoStipendio = nextDate;
     currentData.stipendio = base;
     currentData.extra = evaluatedExtra;
-    currentData.extraExpression = extraInput; // Salviamo la stringa originale digitata
+    currentData.extraExpression = extraInput;
 
     await setDoc(docRef, currentData);
     alert("Dati stipendio salvati!");
@@ -260,7 +260,14 @@ document.getElementById('cancel-edit-btn').addEventListener('click', resetForm);
 function resetForm() {
     document.getElementById('edit-expense-id').value = '';
     document.getElementById('expense-form').reset();
-    document.getElementById('expense-date').valueAsDate = new Date();
+    
+    // Ripristina la data odierna corretta
+    const tLocal = new Date();
+    const y = tLocal.getFullYear();
+    const m = String(tLocal.getMonth() + 1).padStart(2, '0');
+    const d = String(tLocal.getDate()).padStart(2, '0');
+    document.getElementById('expense-date').value = `${y}-${m}-${d}`;
+
     document.getElementById('form-expense-title').innerText = "Aggiungi Nuova Spesa";
     document.getElementById('cancel-edit-btn').classList.add('hidden');
 }
@@ -275,9 +282,7 @@ window.deleteExpense = async (id) => {
 
 // Calcoli Dashboard
 function calculateDashboard() {
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = `${year}-${month}-${day}`; // Stringa esatta YYYY-MM-DD locale
 
     const spentToday = expenses
         .filter(e => e.date === todayStr)
@@ -289,7 +294,10 @@ function calculateDashboard() {
     const nextSalary = new Date(salaryData.nextDate);
     nextSalary.setHours(0,0,0,0);
 
-    const diffTime = nextSalary - today;
+    const todayDateObj = new Date(year, month - 1, day);
+    todayDateObj.setHours(0,0,0,0);
+
+    const diffTime = nextSalary - todayDateObj;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     document.getElementById('days-left').innerText = diffDays > 0 ? diffDays : 0;
@@ -299,7 +307,7 @@ function calculateDashboard() {
 
     const currentPeriodExpenses = expenses.filter(e => {
         const expDate = new Date(e.date);
-        return expDate >= lastSalaryDate && expDate <= today;
+        return expDate >= lastSalaryDate && expDate <= todayDateObj;
     }).reduce((sum, e) => sum + e.amount, 0);
 
     const totalSalary = (salaryData.base || 0) + (salaryData.extra || 0);
