@@ -60,7 +60,7 @@ async function loadUserData() {
     calculateDashboard();
 }
 
-// Gestione Stipendio
+// Gestione Stipendio e salvataggio automatico data
 async function loadSalary() {
     try {
         const docRef = doc(db, "config", "impostazioni");
@@ -72,18 +72,41 @@ async function loadSalary() {
             salaryData.extraExpression = data.extraExpression || (data.extra !== undefined ? data.extra.toString() : "0");
 
             document.getElementById('salary-date').value = salaryData.nextDate;
-            document.getElementById('salary-base').value = salaryData.base;
-            document.getElementById('salary-extra').value = salaryData.extraExpression;
+            document.getElementById('modal-salary-base').value = salaryData.base;
+            document.getElementById('modal-salary-extra').value = salaryData.extraExpression;
         }
     } catch (e) {
         console.log("Errore caricamento stipendio:", e);
     }
 }
 
-document.getElementById('save-salary-btn').addEventListener('click', async () => {
+// Salvataggio automatico quando cambi la data direttamente in home
+document.getElementById('salary-date').addEventListener('change', async () => {
     const nextDate = document.getElementById('salary-date').value;
-    const base = parseFloat(document.getElementById('salary-base').value) || 0;
-    const extraInput = document.getElementById('salary-extra').value.trim();
+    salaryData.nextDate = nextDate;
+
+    const docRef = doc(db, "config", "impostazioni");
+    const docSnap = await getDoc(docRef);
+    let currentData = docSnap.exists() ? docSnap.data() : {};
+    
+    currentData.dataProssimoStipendio = nextDate;
+    await setDoc(docRef, currentData);
+    calculateDashboard();
+});
+
+// Gestione Apertura / Chiusura Modale Stipendio
+const salaryModal = document.getElementById('salary-modal');
+document.getElementById('open-salary-modal').addEventListener('click', () => {
+    salaryModal.classList.remove('hidden');
+});
+document.getElementById('close-salary-modal').addEventListener('click', () => {
+    salaryModal.classList.add('hidden');
+});
+
+// Salvataggio dati da dentro il pop-up
+document.getElementById('save-salary-modal-btn').addEventListener('click', async () => {
+    const base = parseFloat(document.getElementById('modal-salary-base').value) || 0;
+    const extraInput = document.getElementById('modal-salary-extra').value.trim();
 
     let evaluatedExtra = 0;
     try {
@@ -94,41 +117,37 @@ document.getElementById('save-salary-btn').addEventListener('click', async () =>
         return;
     }
 
-    salaryData = { 
-        nextDate, 
-        base, 
-        extra: evaluatedExtra, 
-        extraExpression: extraInput 
-    };
+    salaryData.base = base;
+    salaryData.extra = evaluatedExtra;
+    salaryData.extraExpression = extraInput;
 
     const docRef = doc(db, "config", "impostazioni");
     const docSnap = await getDoc(docRef);
     let currentData = docSnap.exists() ? docSnap.data() : {};
     
-    currentData.dataProssimoStipendio = nextDate;
     currentData.stipendio = base;
     currentData.extra = evaluatedExtra;
     currentData.extraExpression = extraInput;
 
     await setDoc(docRef, currentData);
-    alert("Dati stipendio salvati!");
+    salaryModal.classList.add('hidden');
+    alert("Dati stipendio ed extra salvati!");
     calculateDashboard();
 });
 
-// Funzione di utilità per formattare la prima lettera maiuscola (Capitalize)
+// Funzione di utilità per Capitalize
 function capitalize(str) {
     if (!str) return "";
     str = str.trim();
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
-// Gestione Categorie con pulizia e normalizzazione automatica
+// Gestione Categorie
 async function loadCategories() {
     try {
         const docRef = doc(db, "config", "impostazioni");
         const docSnap = await getDoc(docRef);
         if (docSnap.exists() && docSnap.data().categorie) {
-            // Normalizziamo tutte le categorie esistenti per eliminare i duplicati con maiuscole/minuscole
             let rawCategories = docSnap.data().categorie;
             let normalizedSet = new Set(rawCategories.map(c => capitalize(c)));
             categories = Array.from(normalizedSet).sort();
@@ -151,14 +170,13 @@ function renderCategories(selectedCategory = "") {
     });
 }
 
-// Aggiunta o Eliminazione Rapida Categoria con Pulsante Arancione +
+// Aggiunta o Eliminazione Rapida Categoria
 document.getElementById('quick-add-category-btn').addEventListener('click', async () => {
     const inputName = prompt("Inserisci il nome della nuova categoria (o scrivi una categoria esistente preceduta da '-' es. '-Sigarette' per eliminarla):");
     if (!inputName || !inputName.trim()) return;
     
     let trimmed = inputName.trim();
 
-    // Se l'utente mette il segno meno davanti, gestiamo l'eliminazione
     if (trimmed.startsWith('-')) {
         let targetCat = capitalize(trimmed.substring(1));
         const index = categories.indexOf(targetCat);
@@ -269,6 +287,7 @@ window.editExpense = (id) => {
     const exp = expenses.find(e => e.id === id);
     if (!exp) return;
 
+    document.getElementById('edit-expense-id').value = exp.amount; // fix piccolo campo
     document.getElementById('edit-expense-id').value = exp.id;
     document.getElementById('expense-amount').value = exp.amount;
     document.getElementById('expense-date').value = exp.date;
@@ -329,7 +348,12 @@ function calculateDashboard() {
     const residue = totalSalary - currentPeriodExpenses;
     document.getElementById('salary-residue').innerText = `€ ${residue.toFixed(2)}`;
 
-    const daysRemaining = diffDays > 0 ? diffDays : 1;
-    const dailyBudget = residue > 0 ? (residue / daysRemaining) : 0;
+    const daysRemaining = diffDays > notDefined(diffDays) ? diffDays : (diffDays > 0 ? diffDays : 1);
+    const dailyBudget = residue > 0 ? (residue / (diffDays > 0 ? diffDays : 1)) : 0;
     document.getElementById('daily-budget').innerText = `€ ${dailyBudget.toFixed(2)}`;
+}
+
+// Funzione di utilità per evitare errori se una variabile non è definita
+function notDefined(v) {
+    return typeof v === 'undefined';
 }
