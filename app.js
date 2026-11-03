@@ -1,7 +1,7 @@
 import { 
     auth, db, signInWithEmailAndPassword, createUserWithEmailAndPassword, 
     onAuthStateChanged, signOut, collection, addDoc, getDocs, doc, 
-    updateDoc, deleteDoc, query, where, setDoc, getDoc 
+    updateDoc, deleteDoc, setDoc, getDoc 
 } from "./firebase-config.js";
 
 let currentUser = null;
@@ -12,7 +12,7 @@ let salaryData = { nextDate: "", base: 0, extra: 0 };
 // Inizializzazione della Data di Oggi per l'Input Spesa
 document.getElementById('expense-date').valueAsDate = new Date();
 
-// Controllo Stato Autenticazione (Login Persistente)
+// Controllo Stato Autenticazione
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
@@ -46,7 +46,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 // Logout
 document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
-// Caricamento Dati Utente
+// Caricamento Dati Dalle Tue Collezioni Originali
 async function loadUserData() {
     await loadSalary();
     await loadCategories();
@@ -54,15 +54,19 @@ async function loadUserData() {
     calculateDashboard();
 }
 
-// Gestione Stipendio
+// Gestione Stipendio (Salvato in config/salary o config/impostazioni)
 async function loadSalary() {
-    const docRef = doc(db, "users", currentUser.uid, "settings", "salary");
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-        salaryData = docSnap.data();
-        document.getElementById('salary-date').value = salaryData.nextDate || "";
-        document.getElementById('salary-base').value = salaryData.base || 0;
-        document.getElementById('salary-extra').value = salaryData.extra || 0;
+    try {
+        const docRef = doc(db, "config", "impostazioni");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists() && docSnap.data().stipendio) {
+            salaryData = docSnap.data().stipendio;
+            document.getElementById('salary-date').value = salaryData.nextDate || "";
+            document.getElementById('salary-base').value = salaryData.base || 0;
+            document.getElementById('salary-extra').value = salaryData.extra || 0;
+        }
+    } catch (e) {
+        console.log("Nessun dato stipendio trovato ancora.");
     }
 }
 
@@ -73,21 +77,31 @@ document.getElementById('save-salary-btn').addEventListener('click', async () =>
         extra: parseFloat(document.getElementById('salary-extra').value) || 0
     };
 
-    const docRef = doc(db, "users", currentUser.uid, "settings", "salary");
-    await setDoc(docRef, salaryData);
+    const docRef = doc(db, "config", "impostazioni");
+    // Manteniamo le categorie esistenti e aggiorniamo lo stipendio
+    const docSnap = await getDoc(docRef);
+    let currentData = docSnap.exists() ? docSnap.data() : {};
+    currentData.stipendio = salaryData;
+
+    await setDoc(docRef, currentData);
     alert("Dati stipendio salvati!");
     calculateDashboard();
 });
 
-// Gestione Categorie
+// Gestione Categorie (Prese dalla lista 'categorie' nel documento config/impostazioni)
 async function loadCategories() {
-    const q = collection(db, "users", currentUser.uid, "categories");
-    const querySnapshot = await getDocs(q);
-    categories = [];
-    querySnapshot.forEach((doc) => {
-        categories.push({ id: doc.id, ...doc.data() });
-    });
-    renderCategories();
+    try {
+        const docRef = doc(db, "config", "impostazioni");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists() && docSnap.data().categorie) {
+            categories = docSnap.data().categorie; // È un array di stringhe
+        } else {
+            categories = [];
+        }
+        renderCategories();
+    } catch (e) {
+        console.error("Errore caricamento categorie:", e);
+    }
 }
 
 function renderCategories() {
@@ -97,12 +111,12 @@ function renderCategories() {
     select.innerHTML = '<option value="">Seleziona...</option>';
     list.innerHTML = '';
 
-    categories.forEach(cat => {
-        select.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
+    categories.forEach((catName, index) => {
+        select.innerHTML += `<option value="${catName}">${catName}</option>`;
         list.innerHTML += `
             <div class="category-item">
-                <span class="item-title">${cat.name}</span>
-                <button class="btn-danger" onclick="deleteCategory('${cat.id}')">Elimina</button>
+                <span class="item-title">${catName}</span>
+                <button class="btn-danger" onclick="deleteCategory(${index})">Elimina</button>
             </div>
         `;
     });
@@ -113,27 +127,51 @@ document.getElementById('add-category-btn').addEventListener('click', async () =
     const name = input.value.trim();
     if (!name) return;
 
-    await addDoc(collection(db, "users", currentUser.uid, "categories"), { name });
-    input.value = '';
-    await loadCategories();
+    if (!categories.includes(name)) {
+        categories.push(name);
+        const docRef = doc(db, "config", "impostazioni");
+        const docSnap = await getDoc(docRef);
+        let currentData = docSnap.exists() ? docSnap.data() : {};
+        currentData.categorie = categories;
+        await setDoc(docRef, currentData);
+        input.value = '';
+        renderCategories();
+    } else {
+        alert("Questa categoria esiste già!");
+    }
 });
 
-window.deleteCategory = async (id) => {
+window.deleteCategory = async (index) => {
     if (confirm("Vuoi cancellare questa categoria?")) {
-        await deleteDoc(doc(db, "users", currentUser.uid, "categories", id));
-        await loadCategories();
+        categories.splice(index, 1);
+        const docRef = doc(db, "config", "impostazioni");
+        const docSnap = await getDoc(docRef);
+        let currentData = docSnap.exists() ? docSnap.data() : {};
+        currentData.categorie = categories;
+        await setDoc(docRef, currentData);
+        renderCategories();
     }
 };
 
-// Gestione Spese
+// Gestione Spese (Collezione principale 'spese')
 async function loadExpenses() {
-    const q = collection(db, "users", currentUser.uid, "expenses");
-    const querySnapshot = await getDocs(q);
-    expenses = [];
-    querySnapshot.forEach((doc) => {
-        expenses.push({ id: doc.id, ...doc.data() });
-    });
-    renderExpenses();
+    try {
+        const q = collection(db, "spese");
+        const querySnapshot = await getDocs(q);
+        expenses = [];
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            expenses.push({ 
+                id: docSnap.id, 
+                amount: parseFloat(data.importo || data.amount || 0),
+                date: data.data || data.date,
+                category: data.categoria || data.category 
+            });
+        });
+        renderExpenses();
+    } catch (e) {
+        console.error("Errore caricamento spese:", e);
+    }
 }
 
 function renderExpenses() {
@@ -150,7 +188,7 @@ function renderExpenses() {
                     <span class="item-sub">${exp.date}</span>
                 </div>
                 <div class="item-actions">
-                    <strong style="margin-right:8px;">€ ${parseFloat(exp.amount).toFixed(2)}</strong>
+                    <strong style="margin-right:8px;">€ ${exp.amount.toFixed(2)}</strong>
                     <button class="btn-edit" onclick="editExpense('${exp.id}')">✏️</button>
                     <button class="btn-danger" onclick="deleteExpense('${exp.id}')">🗑️</button>
                 </div>
@@ -166,12 +204,13 @@ document.getElementById('expense-form').addEventListener('submit', async (e) => 
     const date = document.getElementById('expense-date').value;
     const category = document.getElementById('expense-category').value;
 
-    const data = { amount, date, category };
+    // Salviamo usando i campi originali in italiano (importo, data, categoria)
+    const data = { importo: amount, data: date, categoria: category, timestamp: new Date() };
 
     if (id) {
-        await updateDoc(doc(db, "users", currentUser.uid, "expenses", id), data);
+        await updateDoc(doc(db, "spese", id), data);
     } else {
-        await addDoc(collection(db, "users", currentUser.uid, "expenses"), data);
+        await addDoc(collection(db, "spese"), data);
     }
 
     resetForm();
@@ -204,25 +243,23 @@ function resetForm() {
 
 window.deleteExpense = async (id) => {
     if (confirm("Vuoi cancellare questa spesa?")) {
-        await deleteDoc(doc(db, "users", currentUser.uid, "expenses", id));
+        await deleteDoc(doc(db, "spese", id));
         await loadExpenses();
         calculateDashboard();
     }
 };
 
-// Algoritmo di Calcolo Dashboard & Giorni Mancanti
+// Calcoli Dashboard
 function calculateDashboard() {
     const today = new Date();
     today.setHours(0,0,0,0);
     const todayStr = today.toISOString().split('T')[0];
 
-    // Speso Oggi
     const spentToday = expenses
         .filter(e => e.date === todayStr)
         .reduce((sum, e) => sum + e.amount, 0);
     document.getElementById('spent-today').innerText = `€ ${spentToday.toFixed(2)}`;
 
-    // Calcolo Giorni Mancanti
     if (!salaryData.nextDate) return;
 
     const nextSalary = new Date(salaryData.nextDate);
@@ -233,12 +270,9 @@ function calculateDashboard() {
     
     document.getElementById('days-left').innerText = diffDays > 0 ? diffDays : 0;
 
-    // Calcolo del ciclo mensile dello stipendio
-    // Troviamo il mese precedente dello stipendio come data d'inizio del periodo
     const lastSalaryDate = new Date(nextSalary);
     lastSalaryDate.setMonth(lastSalaryDate.getMonth() - 1);
 
-    // Spese nel periodo di stipendio corrente (da ultimo stipendio a oggi)
     const currentPeriodExpenses = expenses.filter(e => {
         const expDate = new Date(e.date);
         return expDate >= lastSalaryDate && expDate <= today;
@@ -248,7 +282,6 @@ function calculateDashboard() {
     const residue = totalSalary - currentPeriodExpenses;
     document.getElementById('salary-residue').innerText = `€ ${residue.toFixed(2)}`;
 
-    // Budget giornaliero
     const daysRemaining = diffDays > 0 ? diffDays : 1;
     const dailyBudget = residue > 0 ? (residue / daysRemaining) : 0;
     document.getElementById('daily-budget').innerText = `€ ${dailyBudget.toFixed(2)}`;
