@@ -14,20 +14,37 @@
 
     <div class="container">
         <!-- Filtri del Periodo -->
-        <div class="card">
+        <div class="card card-highlight">
             <h3>Seleziona Periodo</h3>
             <div class="form-group">
-                <label>Filtro Rapido</label>
-                <select id="quick-filter">
-                    <option value="today">Oggi</option>
-                    <option value="week">Questa Settimana</option>
-                    <option value="month" selected>Questo Mese</option>
-                    <option value="year">Questo Anno</option>
+                <label>Tipo di Filtro</label>
+                <select id="filter-type">
+                    <option value="month" selected>Mese Specifico</option>
+                    <option value="week">Settimana Specifica</option>
+                    <option value="year">Anno Specifico</option>
                     <option value="custom">Periodo Personalizzato</option>
                 </select>
             </div>
 
-            <!-- Selezione periodo da/a -->
+            <!-- Selezione Mese -->
+            <div id="selector-month-container" class="form-group">
+                <label>Seleziona Mese</label>
+                <input type="month" id="select-month">
+            </div>
+
+            <!-- Selezione Settimana -->
+            <div id="selector-week-container" class="form-group hidden">
+                <label>Seleziona Settimana</label>
+                <input type="week" id="select-week">
+            </div>
+
+            <!-- Selezione Anno -->
+            <div id="selector-year-container" class="form-group hidden">
+                <label>Seleziona Anno</label>
+                <select id="select-year"></select>
+            </div>
+
+            <!-- Selezione periodo personalizzato da/a -->
             <div id="custom-date-container" class="hidden">
                 <div class="metric-grid">
                     <div class="form-group">
@@ -78,6 +95,16 @@
 
         let expenses = [];
 
+        // Inizializzazione input di default sul mese corrente (es. 2026-11)
+        const now = new Date();
+        const curYear = now.getFullYear();
+        const curMonth = String(now.getMonth() + 1).padStart(2, '0');
+        document.getElementById('select-month').value = `${curYear}-${curMonth}`;
+        
+        // Imposta di default anche l'anno corrente nell'input week (es. 2026-W45)
+        // Calcolo approssimativo settimana corrente per input week
+        document.getElementById('select-week').value = `${curYear}-W01`;
+
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const q = collection(db, "spese");
@@ -92,48 +119,102 @@
                         category: data.categoria || data.category 
                     });
                 });
+                populateYearsDropdown();
                 applyFilter();
             } else {
                 window.location.href = "index.html";
             }
         });
 
-        document.getElementById('quick-filter').addEventListener('change', (e) => {
-            if (e.target.value === 'custom') {
+        // Popola la tendina degli anni in base alle spese salvate nel database
+        function populateYearsDropdown() {
+            const yearsSet = new Set();
+            expenses.forEach(e => {
+                if (e.date) {
+                    const y = new Date(e.date).getFullYear();
+                    if (!isNaN(y)) yearsSet.add(y);
+                }
+            });
+            yearsSet.add(curYear); // Assicura che l'anno corrente ci sia sempre
+
+            const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
+            const yearSelect = document.getElementById('select-year');
+            yearSelect.innerHTML = '';
+            sortedYears.forEach(y => {
+                yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+            });
+        }
+
+        // Gestione cambio tipo di filtro (mostra/nascondi i selettori giusti)
+        document.getElementById('filter-type').addEventListener('change', (e) => {
+            const val = e.target.value;
+            document.getElementById('selector-month-container').classList.add('hidden');
+            document.getElementById('selector-week-container').classList.add('hidden');
+            document.getElementById('selector-year-container').classList.add('hidden');
+            document.getElementById('custom-date-container').classList.add('hidden');
+
+            if (val === 'month') {
+                document.getElementById('selector-month-container').classList.remove('hidden');
+            } else if (val === 'week') {
+                document.getElementById('selector-week-container').classList.remove('hidden');
+            } else if (val === 'year') {
+                document.getElementById('selector-year-container').classList.remove('hidden');
+            } else if (val === 'custom') {
                 document.getElementById('custom-date-container').classList.remove('hidden');
-            } else {
-                document.getElementById('custom-date-container').classList.add('hidden');
             }
         });
 
         document.getElementById('apply-filter-btn').addEventListener('click', applyFilter);
 
         function applyFilter() {
-            const type = document.getElementById('quick-filter').value;
-            const now = new Date();
+            const type = document.getElementById('filter-type').value;
             let from, to;
 
-            if (type === 'today') {
-                from = new Date(now.setHours(0,0,0,0));
-                to = new Date(now.setHours(23,59,59,999));
-            } else if (type === 'week') {
-                const day = now.getDay() || 7;
-                from = new Date(now.setDate(now.getDate() - day + 1));
+            if (type === 'month') {
+                const monthVal = document.getElementById('select-month').value; // es. "2026-11"
+                if (!monthVal) return alert("Seleziona un mese!");
+                const [y, m] = monthVal.split('-');
+                from = new Date(parseInt(y), parseInt(m) - 1, 1);
+                to = new Date(parseInt(y), parseInt(m), 0, 23, 59, 59);
+            } 
+            else if (type === 'week') {
+                const weekVal = document.getElementById('select-week').value; // es. "2026-W45"
+                if (!weekVal) return alert("Seleziona una settimana!");
+                
+                // Conversione stringa anno-settimana in date d'inizio e fine settimana
+                const [yearStr, weekStr] = weekVal.split('-W');
+                const yearNum = parseInt(yearStr);
+                const weekNum = parseInt(weekStr);
+                
+                // Primo giorno dell'anno
+                const simple = new Date(yearNum, 0, 1 + (weekNum - 1) * 7);
+                const dow = simple.getDay();
+                const ISOweekStart = simple;
+                if (dow <= 4) {
+                    ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+                } else {
+                    ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+                }
+                from = new Date(ISOweekStart);
                 from.setHours(0,0,0,0);
-                to = new Date();
-            } else if (type === 'month') {
-                from = new Date(now.getFullYear(), now.getMonth(), 1);
-                to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-            } else if (type === 'year') {
-                from = new Date(now.getFullYear(), 0, 1);
-                to = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
-            } else if (type === 'custom') {
+                
+                to = new Date(from);
+                to.setDate(from.getDate() + 6);
+                to.setHours(23,59,59,999);
+            } 
+            else if (type === 'year') {
+                const yearNum = parseInt(document.getElementById('select-year').value);
+                if (!yearNum) return alert("Seleziona un anno!");
+                from = new Date(yearNum, 0, 1);
+                to = new Date(yearNum, 11, 31, 23, 59, 59);
+            } 
+            else if (type === 'custom') {
                 const fVal = document.getElementById('date-from').value;
                 const tVal = document.getElementById('date-to').value;
                 if (!fVal || !tVal) return alert("Seleziona entrambe le date!");
                 from = new Date(fVal);
                 to = new Date(tVal);
-                to.setHours(23,59,59);
+                to.setHours(23,59,59,999);
             }
 
             const filtered = expenses.filter(e => {
@@ -156,17 +237,28 @@
 
             const catContainer = document.getElementById('category-totals-list');
             catContainer.innerHTML = '';
-            for (const [cat, sum] of Object.entries(catTotals)) {
-                catContainer.innerHTML += `
-                    <div class="expense-item">
-                        <span class="item-title">${cat}</span>
-                        <strong>€ ${sum.toFixed(2)}</strong>
-                    </div>
-                `;
+            
+            if (Object.keys(catTotals).length === 0) {
+                catContainer.innerHTML = '<div style="font-size: 12px; color: #888; padding: 6px;">Nessuna spesa in questo periodo.</div>';
+            } else {
+                for (const [cat, sum] of Object.entries(catTotals)) {
+                    catContainer.innerHTML += `
+                        <div class="expense-item">
+                            <span class="item-title">${cat}</span>
+                            <strong>€ ${sum.toFixed(2)}</strong>
+                        </div>
+                    `;
+                }
             }
 
             const listContainer = document.getElementById('filtered-expenses-list');
             listContainer.innerHTML = '';
+
+            if (list.length === 0) {
+                listContainer.innerHTML = '<div style="font-size: 12px; color: #888; text-align: center; padding: 10px;">Nessun dettaglio spesa trovato.</div>';
+                return;
+            }
+
             list.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
                 listContainer.innerHTML += `
                     <div class="expense-item">
