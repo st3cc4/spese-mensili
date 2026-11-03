@@ -4,37 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spese Mensili PWA</title>
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- Schermata di Login -->
+    <!-- Schermata di Accesso -->
     <div id="auth-screen" class="auth-container">
         <h2>Accesso Spese Mensili</h2>
         <form id="login-form">
             <div class="form-group">
-                <label for="email">Email (ID)</label>
-                <input type="email" id="email" required placeholder="tuamail@example.com">
+                <label>Email (ID User)</label>
+                <input type="email" id="email" required placeholder="inserisci email">
             </div>
             <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" required placeholder="La tua password">
+                <label>Password</label>
+                <input type="password" id="password" required placeholder="inserisci password">
             </div>
             <button type="submit" class="btn">Accedi / Registrati</button>
         </form>
     </div>
 
-    <!-- Applicazione Principale -->
+    <!-- Applicazione Principale (Dashboard) -->
     <div id="app-screen" class="hidden">
         <header>
-            <h1>Le Mie Spese</h1>
-            <button id="logout-btn" class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 14px;">Esci</button>
+            <h1>Dashboard Spese</h1>
+            <button id="logout-btn" class="btn btn-secondary" style="width: auto; padding: 4px 10px; font-size: 12px;">Esci</button>
         </header>
 
         <div class="container">
-            <!-- Box Stipendio e Configurazione -->
+            <!-- Box Configurazione Stipendio -->
             <div class="card">
-                <h3>Configurazione Stipendio & Budget</h3>
+                <h3>Impostazioni Stipendio</h3>
                 <div class="form-group">
                     <label>Data Prossimo Stipendio</label>
                     <input type="date" id="salary-date">
@@ -45,16 +46,16 @@
                         <input type="number" step="0.01" id="salary-base" placeholder="0.00">
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
-                        <label>Extra (+ / - €)</label>
+                        <label>Extra / Trattenute (€)</label>
                         <input type="number" step="0.01" id="salary-extra" placeholder="0.00">
                     </div>
                 </div>
-                <button id="save-salary-btn" class="btn" style="margin-top: 12px;">Salva Impostazioni Stipendio</button>
+                <button id="save-salary-btn" class="btn" style="margin-top: 10px;">Salva Dati Stipendio</button>
             </div>
 
-            <!-- Box Metriche in Tempo Reale -->
+            <!-- Dashboard Calcoli -->
             <div class="card">
-                <h3>Panoramica Finanziaria</h3>
+                <h3>Riepilogo Budget</h3>
                 <div class="metric-grid">
                     <div class="metric-box">
                         <span>Giorni Mancanti</span>
@@ -71,16 +72,17 @@
                         <strong id="salary-residue">€ 0.00</strong>
                     </div>
                     <div class="metric-box">
-                        <span>Budget Giornaliero</span>
+                        <span>Disponibile al Giorno</span>
                         <strong id="daily-budget">€ 0.00</strong>
                     </div>
                 </div>
             </div>
 
-            <!-- Inserimento Nuova Spesa -->
+            <!-- Modulo Inserimento / Modifica Spesa -->
             <div class="card">
-                <h3>Aggiungi Nuova Spesa</h3>
+                <h3 id="form-expense-title">Aggiungi Nuova Spesa</h3>
                 <form id="expense-form">
+                    <input type="hidden" id="edit-expense-id">
                     <div class="form-group">
                         <label>Importo (€)</label>
                         <input type="number" step="0.01" id="expense-amount" required placeholder="0.00">
@@ -92,41 +94,42 @@
                     <div class="form-group">
                         <label>Categoria</label>
                         <select id="expense-category" required>
-                            <option value="">Seleziona categoria...</option>
+                            <option value="">Seleziona...</option>
                         </select>
                     </div>
-                    <button type="submit" class="btn">Registra Spesa</button>
+                    <button type="submit" id="save-expense-btn" class="btn">Salva Spesa</button>
+                    <button type="button" id="cancel-edit-btn" class="btn btn-secondary hidden" style="margin-top: 6px;">Annulla Modifica</button>
                 </form>
             </div>
 
-            <!-- Gestione Categorie e Ultime Spese -->
+            <!-- Gestione Categorie -->
             <div class="card">
                 <h3>Gestione Categorie</h3>
-                <div class="form-group" style="display: flex; gap: 8px;">
-                    <input type="text" id="new-category-name" placeholder="Nuova categoria..." style="margin-bottom:0;">
-                    <button id="add-category-btn" class="btn" style="width: auto;">Aggiungi</button>
+                <div class="form-group" style="display: flex; gap: 6px;">
+                    <input type="text" id="new-category-name" placeholder="Nome nuova categoria" style="margin-bottom:0;">
+                    <button id="add-category-btn" class="btn" style="width: auto; padding: 0 16px;">Aggiungi</button>
                 </div>
-                <div id="categories-list" style="margin-top: 12px;"></div>
+                <div id="categories-list" style="margin-top: 10px;"></div>
             </div>
 
+            <!-- Ultime Spese -->
             <div class="card">
                 <h3>Ultime Spese Registrate</h3>
                 <div id="recent-expenses-list"></div>
             </div>
         </div>
 
-        <!-- Barra di Navigazione Inferiore -->
+        <!-- Menu Navigazione Inferiore -->
         <nav class="nav-bar">
             <a href="index.html" class="nav-item active">
-                <span>🏠</span> Dashboard
+                <span style="font-size: 18px;">🏠</span> Dashboard
             </a>
             <a href="storico.html" class="nav-item">
-                <span>📊</span> Storico & Filtri
+                <span style="font-size: 18px;">📊</span> Storico e Filtri
             </a>
         </nav>
     </div>
 
-    <!-- Script Principale -->
     <script type="module" src="app.js"></script>
 </body>
 </html>
