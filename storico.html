@@ -19,11 +19,18 @@
             <div class="form-group">
                 <label>Tipo di Filtro</label>
                 <select id="filter-type">
-                    <option value="month" selected>Mese Specifico</option>
-                    <option value="week">Settimana Specifica</option>
-                    <option value="year">Anno Specifico</option>
-                    <option value="custom">Periodo Personalizzato</option>
+                    <option value="day">Giorno</option>
+                    <option value="week">Settimana</option>
+                    <option value="month" selected>Mese</option>
+                    <option value="year">Anno</option>
+                    <option value="custom">Personalizzato</option>
                 </select>
+            </div>
+
+            <!-- Selezione Giorno Singolo -->
+            <div id="selector-day-container" class="form-group hidden">
+                <label>Seleziona Giorno</label>
+                <input type="date" id="select-day">
             </div>
 
             <!-- Selezione Mese -->
@@ -95,14 +102,14 @@
 
         let expenses = [];
 
-        // Inizializzazione input di default sul mese corrente (es. 2026-11)
+        // Inizializzazione date correnti
         const now = new Date();
         const curYear = now.getFullYear();
         const curMonth = String(now.getMonth() + 1).padStart(2, '0');
+        const curDay = String(now.getDate()).padStart(2, '0');
+
+        document.getElementById('select-day').value = `${curYear}-${curMonth}-${curDay}`;
         document.getElementById('select-month').value = `${curYear}-${curMonth}`;
-        
-        // Imposta di default anche l'anno corrente nell'input week (es. 2026-W45)
-        // Calcolo approssimativo settimana corrente per input week
         document.getElementById('select-week').value = `${curYear}-W01`;
 
         onAuthStateChanged(auth, async (user) => {
@@ -126,7 +133,7 @@
             }
         });
 
-        // Popola la tendina degli anni in base alle spese salvate nel database
+        // Popola la tendina degli anni in base alle spese salvate
         function populateYearsDropdown() {
             const yearsSet = new Set();
             expenses.forEach(e => {
@@ -135,7 +142,7 @@
                     if (!isNaN(y)) yearsSet.add(y);
                 }
             });
-            yearsSet.add(curYear); // Assicura che l'anno corrente ci sia sempre
+            yearsSet.add(curYear);
 
             const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
             const yearSelect = document.getElementById('select-year');
@@ -145,15 +152,18 @@
             });
         }
 
-        // Gestione cambio tipo di filtro (mostra/nascondi i selettori giusti)
+        // Gestione cambio tipo di filtro (mostra/nascondi i selettori)
         document.getElementById('filter-type').addEventListener('change', (e) => {
             const val = e.target.value;
+            document.getElementById('selector-day-container').classList.add('hidden');
             document.getElementById('selector-month-container').classList.add('hidden');
             document.getElementById('selector-week-container').classList.add('hidden');
             document.getElementById('selector-year-container').classList.add('hidden');
             document.getElementById('custom-date-container').classList.add('hidden');
 
-            if (val === 'month') {
+            if (val === 'day') {
+                document.getElementById('selector-day-container').classList.remove('hidden');
+            } else if (val === 'month') {
                 document.getElementById('selector-month-container').classList.remove('hidden');
             } else if (val === 'week') {
                 document.getElementById('selector-week-container').classList.remove('hidden');
@@ -170,23 +180,29 @@
             const type = document.getElementById('filter-type').value;
             let from, to;
 
-            if (type === 'month') {
-                const monthVal = document.getElementById('select-month').value; // es. "2026-11"
+            if (type === 'day') {
+                const dayVal = document.getElementById('select-day').value;
+                if (!dayVal) return alert("Seleziona un giorno!");
+                from = new Date(dayVal);
+                from.setHours(0,0,0,0);
+                to = new Date(dayVal);
+                to.setHours(23,59,59,999);
+            }
+            else if (type === 'month') {
+                const monthVal = document.getElementById('select-month').value;
                 if (!monthVal) return alert("Seleziona un mese!");
                 const [y, m] = monthVal.split('-');
                 from = new Date(parseInt(y), parseInt(m) - 1, 1);
                 to = new Date(parseInt(y), parseInt(m), 0, 23, 59, 59);
             } 
             else if (type === 'week') {
-                const weekVal = document.getElementById('select-week').value; // es. "2026-W45"
+                const weekVal = document.getElementById('select-week').value;
                 if (!weekVal) return alert("Seleziona una settimana!");
                 
-                // Conversione stringa anno-settimana in date d'inizio e fine settimana
                 const [yearStr, weekStr] = weekVal.split('-W');
                 const yearNum = parseInt(yearStr);
                 const weekNum = parseInt(weekStr);
                 
-                // Primo giorno dell'anno
                 const simple = new Date(yearNum, 0, 1 + (weekNum - 1) * 7);
                 const dow = simple.getDay();
                 const ISOweekStart = simple;
