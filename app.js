@@ -25,6 +25,23 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('auth-screen').classList.add('hidden');
         document.getElementById('app-screen').classList.remove('hidden');
         await loadUserData();
+        
+        // Controlla se arriviamo dallo Storico per modificare una spesa passata
+        const editId = localStorage.getItem('edit_id');
+        if (editId) {
+            document.getElementById('edit-expense-id').value = editId;
+            document.getElementById('expense-amount').value = localStorage.getItem('edit_amount');
+            document.getElementById('expense-date').value = localStorage.getItem('edit_date');
+            document.getElementById('expense-category').value = localStorage.getItem('edit_category');
+
+            document.getElementById('form-expense-title').innerText = "Modifica Spesa Storico";
+            document.getElementById('cancel-edit-btn').classList.remove('hidden');
+
+            localStorage.removeItem('edit_id');
+            localStorage.removeItem('edit_amount');
+            localStorage.removeItem('edit_date');
+            localStorage.removeItem('edit_category');
+        }
     } else {
         currentUser = null;
         document.getElementById('auth-screen').classList.remove('hidden');
@@ -287,7 +304,6 @@ window.editExpense = (id) => {
     const exp = expenses.find(e => e.id === id);
     if (!exp) return;
 
-    document.getElementById('edit-expense-id').value = exp.amount; // fix piccolo campo
     document.getElementById('edit-expense-id').value = exp.id;
     document.getElementById('expense-amount').value = exp.amount;
     document.getElementById('expense-date').value = exp.date;
@@ -348,12 +364,7 @@ function calculateDashboard() {
     const residue = totalSalary - currentPeriodExpenses;
     document.getElementById('salary-residue').innerText = `€ ${residue.toFixed(2)}`;
 
-    const daysRemaining = diffDays > notDefined(diffDays) ? diffDays : (diffDays > 0 ? diffDays : 1);
-    const dailyBudget = residue > 0 ? (residue / (diffDays > 0 ? diffDays : 1)) : 0;
+    const daysRemaining = diffDays > 0 ? diffDays : 1;
+    const dailyBudget = residue > 0 ? (residue / daysRemaining) : 0;
     document.getElementById('daily-budget').innerText = `€ ${dailyBudget.toFixed(2)}`;
-}
-
-// Funzione di utilità per evitare errori se una variabile non è definita
-function notDefined(v) {
-    return typeof v === 'undefined';
 }
