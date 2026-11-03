@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Storico Spese</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Flatpickr CSS per calendario intervallo date unico -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 </head>
 <body>
 
@@ -51,18 +53,10 @@
                 <select id="select-year"></select>
             </div>
 
-            <!-- Selezione periodo personalizzato da/a -->
-            <div id="custom-date-container" class="hidden">
-                <div class="metric-grid">
-                    <div class="form-group">
-                        <label>Da</label>
-                        <input type="date" id="date-from">
-                    </div>
-                    <div class="form-group">
-                        <label>A</label>
-                        <input type="date" id="date-to">
-                    </div>
-                </div>
+            <!-- Selezione periodo personalizzato con calendario unico Inizio/Fine -->
+            <div id="custom-date-container" class="form-group hidden">
+                <label>Seleziona Intervallo Date (Inizio -> Fine)</label>
+                <input type="text" id="date-range-picker" placeholder="Scegli data inizio e data fine">
             </div>
 
             <button id="apply-filter-btn" class="btn" style="margin-top:6px;">Applica Filtro</button>
@@ -97,10 +91,17 @@
         </a>
     </nav>
 
+    <!-- Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/it.js"></script>
+
     <script type="module">
         import { auth, db, onAuthStateChanged, collection, getDocs } from "./firebase-config.js";
 
         let expenses = [];
+        let rangePickerInstance = null;
+        let selectedCustomFrom = null;
+        let selectedCustomTo = null;
 
         // Inizializzazione date correnti
         const now = new Date();
@@ -111,6 +112,21 @@
         document.getElementById('select-day').value = `${curYear}-${curMonth}-${curDay}`;
         document.getElementById('select-month').value = `${curYear}-${curMonth}`;
         document.getElementById('select-week').value = `${curYear}-W01`;
+
+        // Inizializzazione Calendario Unico Range Inizio/Fine
+        rangePickerInstance = flatpickr("#date-range-picker", {
+            mode: "range",
+            locale: "it",
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "d/m/Y",
+            onChange: function(selectedDates) {
+                if (selectedDates.length === 2) {
+                    selectedCustomFrom = selectedDates[0];
+                    selectedCustomTo = selectedDates[1];
+                }
+            }
+        });
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -133,7 +149,6 @@
             }
         });
 
-        // Popola la tendina degli anni in base alle spese salvate
         function populateYearsDropdown() {
             const yearsSet = new Set();
             expenses.forEach(e => {
@@ -152,7 +167,6 @@
             });
         }
 
-        // Gestione cambio tipo di filtro (mostra/nascondi i selettori)
         document.getElementById('filter-type').addEventListener('change', (e) => {
             const val = e.target.value;
             document.getElementById('selector-day-container').classList.add('hidden');
@@ -225,11 +239,12 @@
                 to = new Date(yearNum, 11, 31, 23, 59, 59);
             } 
             else if (type === 'custom') {
-                const fVal = document.getElementById('date-from').value;
-                const tVal = document.getElementById('date-to').value;
-                if (!fVal || !tVal) return alert("Seleziona entrambe le date!");
-                from = new Date(fVal);
-                to = new Date(tVal);
+                if (!selectedCustomFrom || !selectedCustomTo) {
+                    return alert("Seleziona sia la data di inizio che quella di fine nel calendario!");
+                }
+                from = new Date(selectedCustomFrom);
+                from.setHours(0,0,0,0);
+                to = new Date(selectedCustomTo);
                 to.setHours(23,59,59,999);
             }
 
