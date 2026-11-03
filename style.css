@@ -54,10 +54,13 @@ header h1 {
 
 .form-group label {
     display: block;
-    font-size: 12px;
+    font-size: 11px; /* Leggermente più compatta per evitare a capo */
     color: #666;
     margin-bottom: 4px;
-    font-weight: 500;
+    font-weight: 600;
+    white-space: nowrap; /* Impedisce alla scritta di andare a capo */
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 input, select {
