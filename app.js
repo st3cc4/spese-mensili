@@ -46,7 +46,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 // Logout
 document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
-// Caricamento Dati Dalle Tue Collezioni Originali
+// Caricamento Dati Dalle Collezioni Firestore (config/impostazioni e spese)
 async function loadUserData() {
     await loadSalary();
     await loadCategories();
@@ -54,47 +54,53 @@ async function loadUserData() {
     calculateDashboard();
 }
 
-// Gestione Stipendio (Salvato in config/salary o config/impostazioni)
+// Gestione Stipendio (legge da config/impostazioni)
 async function loadSalary() {
     try {
         const docRef = doc(db, "config", "impostazioni");
         const docSnap = await getDoc(docRef);
-        if (docSnap.exists() && docSnap.data().stipendio) {
-            salaryData = docSnap.data().stipendio;
-            document.getElementById('salary-date').value = salaryData.nextDate || "";
-            document.getElementById('salary-base').value = salaryData.base || 0;
-            document.getElementById('salary-extra').value = salaryData.extra || 0;
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            salaryData.nextDate = data.dataProssimoStipendio || "";
+            salaryData.base = parseFloat(data.stipendio || data.stipendioBase || 0);
+            salaryData.extra = parseFloat(data.extra || 0);
+
+            document.getElementById('salary-date').value = salaryData.nextDate;
+            document.getElementById('salary-base').value = salaryData.base;
+            document.getElementById('salary-extra').value = salaryData.extra;
         }
     } catch (e) {
-        console.log("Nessun dato stipendio trovato ancora.");
+        console.log("Errore caricamento stipendio:", e);
     }
 }
 
 document.getElementById('save-salary-btn').addEventListener('click', async () => {
-    salaryData = {
-        nextDate: document.getElementById('salary-date').value,
-        base: parseFloat(document.getElementById('salary-base').value) || 0,
-        extra: parseFloat(document.getElementById('salary-extra').value) || 0
-    };
+    const nextDate = document.getElementById('salary-date').value;
+    const base = parseFloat(document.getElementById('salary-base').value) || 0;
+    const extra = parseFloat(document.getElementById('salary-extra').value) || 0;
+
+    salaryData = { nextDate, base, extra };
 
     const docRef = doc(db, "config", "impostazioni");
-    // Manteniamo le categorie esistenti e aggiorniamo lo stipendio
     const docSnap = await getDoc(docRef);
     let currentData = docSnap.exists() ? docSnap.data() : {};
-    currentData.stipendio = salaryData;
+    
+    currentData.dataProssimoStipendio = nextDate;
+    currentData.stipendio = base; // Salvato nel formato originale che avevi
+    currentData.extra = extra;
 
     await setDoc(docRef, currentData);
     alert("Dati stipendio salvati!");
     calculateDashboard();
 });
 
-// Gestione Categorie (Prese dalla lista 'categorie' nel documento config/impostazioni)
+// Gestione Categorie (legge l'array 'categorie' da config/impostazioni)
 async function loadCategories() {
     try {
         const docRef = doc(db, "config", "impostazioni");
         const docSnap = await getDoc(docRef);
         if (docSnap.exists() && docSnap.data().categorie) {
-            categories = docSnap.data().categorie; // È un array di stringhe
+            categories = docSnap.data().categorie;
         } else {
             categories = [];
         }
@@ -153,7 +159,7 @@ window.deleteCategory = async (index) => {
     }
 };
 
-// Gestione Spese (Collezione principale 'spese')
+// Gestione Spese (collezione principale 'spese')
 async function loadExpenses() {
     try {
         const q = collection(db, "spese");
@@ -204,7 +210,6 @@ document.getElementById('expense-form').addEventListener('submit', async (e) => 
     const date = document.getElementById('expense-date').value;
     const category = document.getElementById('expense-category').value;
 
-    // Salviamo usando i campi originali in italiano (importo, data, categoria)
     const data = { importo: amount, data: date, categoria: category, timestamp: new Date() };
 
     if (id) {
@@ -249,7 +254,7 @@ window.deleteExpense = async (id) => {
     }
 };
 
-// Calcoli Dashboard
+// Calcoli Dashboard (Giorni mancanti, Speso oggi, Residuo stipendio, Budget giornaliero)
 function calculateDashboard() {
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -278,6 +283,7 @@ function calculateDashboard() {
         return expDate >= lastSalaryDate && expDate <= today;
     }).reduce((sum, e) => sum + e.amount, 0);
 
+    // Calcolo totale stipendio (Base + Extra/Trattenuta)
     const totalSalary = (salaryData.base || 0) + (salaryData.extra || 0);
     const residue = totalSalary - currentPeriodExpenses;
     document.getElementById('salary-residue').innerText = `€ ${residue.toFixed(2)}`;
