@@ -24,7 +24,7 @@
             </div>
         </div>
 
-        <!-- Filtri del Periodo -->
+        <!-- Filtri del Periodo (Aggiornamento automatico senza pulsante) -->
         <div class="card">
             <h3>Seleziona Periodo</h3>
             <div class="form-group">
@@ -67,8 +67,6 @@
                 <label>Seleziona Intervallo Date (Inizio -> Fine)</label>
                 <input type="text" id="date-range-picker" placeholder="Scegli data inizio e data fine">
             </div>
-
-            <button id="apply-filter-btn" class="btn" style="margin-top:6px;">Applica Filtro</button>
         </div>
 
         <!-- Risultati Totali -->
@@ -88,6 +86,9 @@
             <h3>Dettaglio Spese</h3>
             <div id="filtered-expenses-list"></div>
         </div>
+
+        <!-- Firma d'autore in basso a destra -->
+        <div class="watermark-signature">Created by STECCA</div>
     </div>
 
     <!-- Navigation Bar -->
@@ -112,7 +113,6 @@
         let selectedCustomFrom = null;
         let selectedCustomTo = null;
 
-        // Funzione per calcolare la settimana ISO corrente (YYYY-Www)
         function getISOWeekString(date) {
             const target = new Date(date.valueOf());
             const dayNr = (date.getDay() + 6) % 7;
@@ -135,7 +135,7 @@
 
         document.getElementById('select-day').value = `${curYear}-${curMonth}-${curDay}`;
         document.getElementById('select-month').value = `${curYear}-${curMonth}`;
-        document.getElementById('select-week').value = getISOWeekString(now); // Settimana corrente calcolata dinamicamente
+        document.getElementById('select-week').value = getISOWeekString(now);
 
         rangePickerInstance = flatpickr("#date-range-picker", {
             mode: "range",
@@ -147,6 +147,7 @@
                 if (selectedDates.length === 2) {
                     selectedCustomFrom = selectedDates[0];
                     selectedCustomTo = selectedDates[1];
+                    applyFilter(); // Si aggiorna subito quando selezioni la fine del range
                 }
             }
         });
@@ -194,6 +195,7 @@
             });
         }
 
+        // Eventi di ascolto per aggiornare i filtri in tempo reale senza pulsante
         document.getElementById('filter-type').addEventListener('change', (e) => {
             const val = e.target.value;
             document.getElementById('selector-day-container').classList.add('hidden');
@@ -213,9 +215,13 @@
             } else if (val === 'custom') {
                 document.getElementById('custom-date-container').classList.remove('hidden');
             }
+            applyFilter();
         });
 
-        document.getElementById('apply-filter-btn').addEventListener('click', applyFilter);
+        document.getElementById('select-day').addEventListener('change', applyFilter);
+        document.getElementById('select-month').addEventListener('change', applyFilter);
+        document.getElementById('select-week').addEventListener('input', applyFilter);
+        document.getElementById('select-year').addEventListener('change', applyFilter);
         document.getElementById('search-input').addEventListener('input', applyFilter);
 
         function formatDateToEu(dateStr) {
@@ -234,7 +240,7 @@
 
             if (type === 'day') {
                 const dayVal = document.getElementById('select-day').value;
-                if (!dayVal) return alert("Seleziona un giorno!");
+                if (!dayVal) return;
                 from = new Date(dayVal);
                 from.setHours(0,0,0,0);
                 to = new Date(dayVal);
@@ -242,14 +248,14 @@
             }
             else if (type === 'month') {
                 const monthVal = document.getElementById('select-month').value;
-                if (!monthVal) return alert("Seleziona un mese!");
+                if (!monthVal) return;
                 const [y, m] = monthVal.split('-');
                 from = new Date(parseInt(y), parseInt(m) - 1, 1);
                 to = new Date(parseInt(y), parseInt(m), 0, 23, 59, 59);
             } 
             else if (type === 'week') {
                 const weekVal = document.getElementById('select-week').value;
-                if (!weekVal) return alert("Seleziona una settimana!");
+                if (!weekVal) return;
                 
                 const [yearStr, weekStr] = weekVal.split('-W');
                 const yearNum = parseInt(yearStr);
@@ -272,14 +278,12 @@
             } 
             else if (type === 'year') {
                 const yearNum = parseInt(document.getElementById('select-year').value);
-                if (!yearNum) return alert("Seleziona un anno!");
+                if (!yearNum) return;
                 from = new Date(yearNum, 0, 1);
                 to = new Date(yearNum, 11, 31, 23, 59, 59);
             } 
             else if (type === 'custom') {
-                if (!selectedCustomFrom || !selectedCustomTo) {
-                    return alert("Seleziona sia la data di inizio che quella di fine nel calendario!");
-                }
+                if (!selectedCustomFrom || !selectedCustomTo) return;
                 from = new Date(selectedCustomFrom);
                 from.setHours(0,0,0,0);
                 to = new Date(selectedCustomTo);
