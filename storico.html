@@ -24,7 +24,7 @@
             </div>
         </div>
 
-        <!-- Filtri del Periodo (Aggiornamento automatico senza pulsante) -->
+        <!-- Filtri del Periodo -->
         <div class="card">
             <h3>Seleziona Periodo</h3>
             <div class="form-group">
@@ -147,7 +147,7 @@
                 if (selectedDates.length === 2) {
                     selectedCustomFrom = selectedDates[0];
                     selectedCustomTo = selectedDates[1];
-                    applyFilter(); // Si aggiorna subito quando selezioni la fine del range
+                    applyFilter();
                 }
             }
         });
@@ -168,7 +168,7 @@
                 const data = docSnap.data();
                 expenses.push({ 
                     id: docSnap.id, 
-                    amount: parseFloat(data.importo || data.amount || 0),
+                    amount: parseFloat((data.importo || data.amount || 0).toString().replace(',', '.')) || 0,
                     date: data.data || data.date,
                     category: data.categoria || data.category 
                 });
@@ -195,7 +195,6 @@
             });
         }
 
-        // Eventi di ascolto per aggiornare i filtri in tempo reale senza pulsante
         document.getElementById('filter-type').addEventListener('change', (e) => {
             const val = e.target.value;
             document.getElementById('selector-day-container').classList.add('hidden');
@@ -324,14 +323,18 @@
             if (Object.keys(catTotals).length === 0) {
                 catContainer.innerHTML = '<div style="font-size: 12px; color: #888; padding: 6px;">Nessuna spesa trovata.</div>';
             } else {
-                for (const [cat, sum] of Object.entries(catTotals)) {
+                // Ordinamento alfabetico delle categorie nei risultati
+                const sortedCategories = Object.keys(catTotals).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
+                
+                sortedCategories.forEach(cat => {
+                    const sum = catTotals[cat];
                     catContainer.innerHTML += `
                         <div class="expense-item">
                             <span class="item-title">${cat}</span>
                             <strong>€ ${sum.toFixed(2)}</strong>
                         </div>
                     `;
-                }
+                });
             }
 
             const listContainer = document.getElementById('filtered-expenses-list');
@@ -342,7 +345,7 @@
                 return;
             }
 
-            list.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
+            list.sort((a,b) => new Date(b.date) - new Date(b.date)).forEach(exp => {
                 const dateEu = formatDateToEu(exp.date);
                 listContainer.innerHTML += `
                     <div class="expense-item">
