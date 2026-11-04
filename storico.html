@@ -112,6 +112,22 @@
         let selectedCustomFrom = null;
         let selectedCustomTo = null;
 
+        // Funzione per calcolare la settimana ISO corrente (YYYY-Www)
+        function getISOWeekString(date) {
+            const target = new Date(date.valueOf());
+            const dayNr = (date.getDay() + 6) % 7;
+            target.setDate(target.getDate() - dayNr + 3);
+            const firstThursday = target.valueOf();
+            target.setMonth(0, 1);
+            if (target.getDay() !== 4) {
+                target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
+            }
+            const weekNumber = 1 + Math.round((firstThursday - target.valueOf()) / 604800000);
+            const year = target.getFullYear();
+            const weekStr = String(weekNumber).padStart(2, '0');
+            return `${year}-W${weekStr}`;
+        }
+
         const now = new Date();
         const curYear = now.getFullYear();
         const curMonth = String(now.getMonth() + 1).padStart(2, '0');
@@ -119,7 +135,7 @@
 
         document.getElementById('select-day').value = `${curYear}-${curMonth}-${curDay}`;
         document.getElementById('select-month').value = `${curYear}-${curMonth}`;
-        document.getElementById('select-week').value = `${curYear}-W01`;
+        document.getElementById('select-week').value = getISOWeekString(now); // Settimana corrente calcolata dinamicamente
 
         rangePickerInstance = flatpickr("#date-range-picker", {
             mode: "range",
@@ -200,9 +216,8 @@
         });
 
         document.getElementById('apply-filter-btn').addEventListener('click', applyFilter);
-        document.getElementById('search-input').addEventListener('input', applyFilter); // Ricerca in tempo reale
+        document.getElementById('search-input').addEventListener('input', applyFilter);
 
-        // Funzione di utilità per convertire la data da ISO (YYYY-MM-DD) a Europea (DD/MM/YYYY)
         function formatDateToEu(dateStr) {
             if (!dateStr) return "";
             const parts = dateStr.split('-');
@@ -271,7 +286,6 @@
                 to.setHours(23,59,59,999);
             }
 
-            // Filtro per data e per testo di ricerca (categoria o importo)
             const filtered = expenses.filter(e => {
                 const d = new Date(e.date);
                 const matchDate = (d >= from && d <= to);
@@ -325,7 +339,7 @@
             }
 
             list.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
-                const dateEu = formatDateToEu(exp.date); // Data convertita in GG/MM/AAAA
+                const dateEu = formatDateToEu(exp.date);
                 listContainer.innerHTML += `
                     <div class="expense-item">
                         <div class="item-info">
