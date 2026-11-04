@@ -69,12 +69,26 @@
             </div>
         </div>
 
-        <!-- Risultati Totali -->
+        <!-- Risultati Totali & Bilancio Affiancato -->
         <div class="card">
             <h3>Risultati Periodo</h3>
-            <div class="metric-box" style="margin-bottom: 12px;">
-                <span>Totale Speso nel Periodo</span>
-                <strong id="filter-total" style="font-size: 22px;">€ 0.00</strong>
+            
+            <!-- Griglia Metriche: Entrate e Spese Affiancate -->
+            <div class="metric-grid" style="margin-bottom: 8px;">
+                <div class="metric-box">
+                    <span>Totale Entrate</span>
+                    <strong id="filter-income" style="font-size: 16px; color: #28a745;">€ 0.00</strong>
+                </div>
+                <div class="metric-box">
+                    <span>Totale Speso</span>
+                    <strong id="filter-total" style="font-size: 16px; color: #dc3545;">€ 0.00</strong>
+                </div>
+            </div>
+
+            <!-- Bilancio Netto del Periodo -->
+            <div class="metric-box" style="margin-bottom: 12px; background-color: #e9ecef;">
+                <span>Bilancio Netto del Periodo</span>
+                <strong id="filter-balance" style="font-size: 20px;">€ 0.00</strong>
             </div>
 
             <h4>Totali per Categoria</h4>
@@ -106,9 +120,10 @@
     <script src="https://npmcdn.com/flatpickr/dist/l10n/it.js"></script>
 
     <script type="module">
-        import { auth, db, onAuthStateChanged, collection, getDocs, deleteDoc, doc } from "./firebase-config.js";
+        import { auth, db, onAuthStateChanged, collection, getDocs, deleteDoc, doc, getDoc } from "./firebase-config.js";
 
         let expenses = [];
+        let salaryConfig = { base: 0, extra: 0 };
         let rangePickerInstance = null;
         let selectedCustomFrom = null;
         let selectedCustomTo = null;
@@ -154,13 +169,25 @@
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                await loadExpensesFromDB();
+                await loadConfigAndExpenses();
             } else {
                 window.location.href = "index.html";
             }
         });
 
-        async function loadExpensesFromDB() {
+        async function loadConfigAndExpenses() {
+            try {
+                const docRef = doc(db, "config", "impostazioni");
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    salaryConfig.base = parseFloat((data.stipendio || 0).toString().replace(',', '.')) || 0;
+                    salaryConfig.extra = parseFloat((data.extra || 0).toString().replace(',', '.')) || 0;
+                }
+            } catch (e) {
+                console.log("Errore caricamento configurazione:", e);
+            }
+
             const q = collection(db, "spese");
             const querySnapshot = await getDocs(q);
             expenses = [];
@@ -304,12 +331,39 @@
                 return true;
             });
 
-            renderResults(filtered);
+            renderResults(filtered, from, to, type);
         }
 
-        function renderResults(list) {
-            const total = list.reduce((sum, e) => sum + e.amount, 0);
-            document.getElementById('filter-total').innerText = `€ ${total.toFixed(2)}`;
+        function renderResults(list, from, to, type) {
+            const totalSpent = list.reduce((sum, e) => sum + e.amount, 0);
+            document.getElementById('filter-total').innerText = `€ ${totalSpent.toFixed(2)}`;
+
+            // Calcolo proporzionale delle entrate in base al periodo selezionato
+            let totalIncome = 0;
+            const monthlyIncome = (salaryConfig.base || 0) + (salaryConfig.extra || 0);
+
+            if (type === 'month') {
+                totalIncome = monthlyIncome;
+            } else if (type === 'year') {
+                totalIncome = monthlyIncome * 12;
+            } else if (type === 'day') {
+                totalIncome = monthlyIncome / 30; // stima giornaliera
+            } else if (type === 'week') {
+                totalIncome = monthlyIncome / 4.33; // stima settimanale
+            } else if (type === 'custom' && from && to) {
+                const diffTime = Math.abs(to - from);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                totalIncome = (monthlyIncome / 30) * diffDays;
+            } else {
+                totalIncome = monthlyIncome;
+            }
+
+            document.getElementById('filter-income').innerText = `€ ${totalIncome.toFixed(2)}`;
+
+            const netBalance = totalIncome - totalSpent;
+            const balanceElement = document.getElementById('filter-balance');
+            balanceElement.innerText = `€ ${netBalance.toFixed(2)}`;
+            balanceElement.style.color = netBalance >= 0 ? '#28a745' : '#dc3545';
 
             const catTotals = {};
             list.forEach(e => {
@@ -344,7 +398,6 @@
                 return;
             }
 
-            // Ordinamento rigoroso e universale per data decrescente (più recente in alto) su TUTTI i filtri
             list.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
                 const dateEu = formatDateToEu(exp.date);
                 listContainer.innerHTML += `
@@ -375,7 +428,7 @@
             if (confirm("Vuoi cancellare questa spesa?")) {
                 try {
                     await deleteDoc(doc(db, "spese", id));
-                    await loadExpensesFromDB();
+                    await loadConfigAndExpenses();
                 } catch (err) {
                     alert("Errore durante l'eliminazione: " + err.message);
                 }
