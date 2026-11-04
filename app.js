@@ -18,7 +18,7 @@ const todayStr = `${year}-${month}-${day}`;
 
 document.getElementById('expense-date').value = todayStr;
 
-// Controllo Stato Autenticazione Fluido (Nasconde il login finché non verifica)
+// Controllo Stato Autenticazione Fluido
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
@@ -169,7 +169,7 @@ function formatDateToEu(dateStr) {
     return dateStr;
 }
 
-// Gestione Categorie
+// Gestione Categorie con Datalist dinamica
 async function loadCategories() {
     try {
         const docRef = doc(db, "config", "impostazioni");
@@ -187,13 +187,12 @@ async function loadCategories() {
     }
 }
 
-function renderCategories(selectedCategory = "") {
-    const select = document.getElementById('expense-category');
-    select.innerHTML = '<option value="">Seleziona...</option>';
+function renderCategories() {
+    const datalist = document.getElementById('categories-list');
+    datalist.innerHTML = '';
 
     categories.forEach((catName) => {
-        const isSelected = catName === selectedCategory ? 'selected' : '';
-        select.innerHTML += `<option value="${catName}" ${isSelected}>${catName}</option>`;
+        datalist.innerHTML += `<option value="${catName}">`;
     });
 }
 
@@ -212,6 +211,7 @@ document.getElementById('quick-add-category-btn').addEventListener('click', asyn
                 categories.splice(index, 1);
                 await saveCategoriesToFirebase();
                 renderCategories();
+                document.getElementById('expense-category').value = '';
                 alert(`Categoria "${targetCat}" eliminata.`);
             }
         } else {
@@ -226,7 +226,8 @@ document.getElementById('quick-add-category-btn').addEventListener('click', asyn
         categories.push(formattedName);
         categories.sort();
         await saveCategoriesToFirebase();
-        renderCategories(formattedName);
+        renderCategories();
+        document.getElementById('expense-category').value = formattedName;
     } else {
         alert("Questa categoria esiste già!");
         document.getElementById('expense-category').value = formattedName;
@@ -274,7 +275,7 @@ function renderExpenses() {
     }
 
     todayExpenses.forEach(exp => {
-        const dateEu = formatDateToEu(exp.date); // Data in formato europeo
+        const dateEu = formatDateToEu(exp.date);
         list.innerHTML += `
             <div class="expense-item">
                 <div class="item-info">
@@ -296,7 +297,21 @@ document.getElementById('expense-form').addEventListener('submit', async (e) => 
     const id = document.getElementById('edit-expense-id').value;
     const amount = parseFloat(document.getElementById('expense-amount').value);
     const date = document.getElementById('expense-date').value;
-    const category = document.getElementById('expense-category').value;
+    const rawCat = document.getElementById('expense-category').value;
+    const category = capitalize(rawCat);
+
+    if (!category) {
+        alert("Inserisci una categoria valida.");
+        return;
+    }
+
+    // Se inserisci a mano una nuova categoria mai usata prima, viene salvata automaticamente
+    if (!categories.includes(category)) {
+        categories.push(category);
+        categories.sort();
+        await saveCategoriesToFirebase();
+        renderCategories();
+    }
 
     const data = { importo: amount, data: date, categoria: category, timestamp: new Date() };
 
