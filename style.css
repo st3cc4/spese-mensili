@@ -202,12 +202,13 @@ input, select {
     color: #888;
 }
 
-/* Stili Firma in basso a destra */
+/* Stili Firma in basso a destra (Corsivo e Blu #0000ff) */
 .watermark-signature {
     text-align: right;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: bold;
-    color: #888;
+    font-style: italic;
+    color: #0000ff;
     margin-top: 5px;
     margin-bottom: 10px;
     letter-spacing: 0.5px;
