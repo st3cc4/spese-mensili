@@ -86,7 +86,7 @@ input, select {
     align-items: center;
 }
 
-.category-select-wrapper select {
+.category-select-wrapper select, .category-select-wrapper input {
     flex: 1;
 }
 
@@ -200,6 +200,17 @@ input, select {
 .item-sub {
     font-size: 11px;
     color: #888;
+}
+
+/* Stili Firma in basso a destra */
+.watermark-signature {
+    text-align: right;
+    font-size: 11px;
+    font-weight: bold;
+    color: #888;
+    margin-top: 5px;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
 }
 
 /* Stili Pop-up Modale */
