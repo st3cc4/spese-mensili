@@ -86,6 +86,7 @@ async function loadSalary() {
             const data = docSnap.data();
             salaryData.nextDate = data.dataProssimoStipendio || "";
             salaryData.base = parseFloat((data.stipendio || 0).toString().replace(',', '.')) || 0;
+            salaryData.extra = parseFloat((data.extra || 0).toString().replace(',', '.')) || 0;
             salaryData.extraExpression = data.extraExpression || (data.extra !== undefined ? data.extra.toString() : "0");
 
             document.getElementById('salary-date').value = salaryData.nextDate;
@@ -120,7 +121,7 @@ document.getElementById('close-salary-modal').addEventListener('click', () => {
     salaryModal.classList.add('hidden');
 });
 
-// Salvataggio dati da dentro il pop-up
+// Salvataggio dati da dentro il pop-up con calcolo matematico sicuro dell'extra
 document.getElementById('save-salary-modal-btn').addEventListener('click', async () => {
     const baseRaw = document.getElementById('modal-salary-base').value.trim().replace(',', '.');
     const base = parseFloat(baseRaw) || 0;
