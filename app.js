@@ -85,11 +85,11 @@ async function loadSalary() {
         if (docSnap.exists()) {
             const data = docSnap.data();
             salaryData.nextDate = data.dataProssimoStipendio || "";
-            salaryData.base = parseFloat(data.stipendio || 0);
+            salaryData.base = parseFloat((data.stipendio || 0).toString().replace(',', '.')) || 0;
             salaryData.extraExpression = data.extraExpression || (data.extra !== undefined ? data.extra.toString() : "0");
 
             document.getElementById('salary-date').value = salaryData.nextDate;
-            document.getElementById('modal-salary-base').value = salaryData.base;
+            document.getElementById('modal-salary-base').value = data.stipendio || "";
             document.getElementById('modal-salary-extra').value = salaryData.extraExpression;
         }
     } catch (e) {
@@ -120,14 +120,17 @@ document.getElementById('close-salary-modal').addEventListener('click', () => {
     salaryModal.classList.add('hidden');
 });
 
-// Salvataggio dati da dentro il pop-up
+// Salvataggio dati da dentro il pop-up (gestione corretta della virgola e delle espressioni)
 document.getElementById('save-salary-modal-btn').addEventListener('click', async () => {
-    const base = parseFloat(document.getElementById('modal-salary-base').value) || 0;
+    const baseRaw = document.getElementById('modal-salary-base').value.trim().replace(',', '.');
+    const base = parseFloat(baseRaw) || 0;
     const extraInput = document.getElementById('modal-salary-extra').value.trim();
 
     let evaluatedExtra = 0;
     try {
-        const sanitized = extraInput.replace(/[^0-9+\-.\s]/g, '');
+        // Sostituisce eventuali virgole con punti anche dentro l'espressione extra
+        const normalizedExtra = extraInput.replace(',', '.');
+        const sanitized = normalizedExtra.replace(/[^0-9+\-.\s]/g, '');
         evaluatedExtra = sanitized ? eval(sanitized) : 0;
     } catch (err) {
         alert("Formato extra non valido. Controlla i valori inseriti.");
@@ -142,7 +145,7 @@ document.getElementById('save-salary-modal-btn').addEventListener('click', async
     const docSnap = await getDoc(docRef);
     let currentData = docSnap.exists() ? docSnap.data() : {};
     
-    currentData.stipendio = base;
+    currentData.stipendio = document.getElementById('modal-salary-base').value.trim(); // Salviamo il testo originale con virgola o punto
     currentData.extra = evaluatedExtra;
     currentData.extraExpression = extraInput;
 
@@ -252,7 +255,7 @@ async function loadExpenses() {
             const data = docSnap.data();
             expenses.push({ 
                 id: docSnap.id, 
-                amount: parseFloat(data.importo || data.amount || 0),
+                amount: parseFloat((data.importo || data.amount || 0).toString().replace(',', '.')) || 0,
                 date: data.data || data.date,
                 category: data.categoria || data.category 
             });
@@ -295,7 +298,8 @@ function renderExpenses() {
 document.getElementById('expense-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('edit-expense-id').value;
-    const amount = parseFloat(document.getElementById('expense-amount').value);
+    const amountInput = document.getElementById('expense-amount').value.toString().replace(',', '.');
+    const amount = parseFloat(amountInput) || 0;
     const date = document.getElementById('expense-date').value;
     const rawCat = document.getElementById('expense-category').value;
     const category = capitalize(rawCat);
@@ -305,7 +309,6 @@ document.getElementById('expense-form').addEventListener('submit', async (e) => 
         return;
     }
 
-    // Se inserisci a mano una nuova categoria mai usata prima, viene salvata automaticamente
     if (!categories.includes(category)) {
         categories.push(category);
         categories.sort();
@@ -358,14 +361,19 @@ window.deleteExpense = async (id) => {
     }
 };
 
-// Calcoli Dashboard
+// Calcoli Dashboard corretti
 function calculateDashboard() {
     const spentToday = expenses
         .filter(e => e.date === todayStr)
         .reduce((sum, e) => sum + e.amount, 0);
     document.getElementById('spent-today').innerText = `€ ${spentToday.toFixed(2)}`;
 
-    if (!salaryData.nextDate) return;
+    if (!salaryData.nextDate) {
+        document.getElementById('days-left').innerText = "0";
+        document.getElementById('salary-residue').innerText = "€ 0.00";
+        document.getElementById('daily-budget').innerText = "€ 0.00";
+        return;
+    }
 
     const nextSalary = new Date(salaryData.nextDate);
     nextSalary.setHours(0,0,0,0);
@@ -378,6 +386,7 @@ function calculateDashboard() {
     
     document.getElementById('days-left').innerText = diffDays > 0 ? diffDays : 0;
 
+    // Calcolo corretto del periodo di riferimento (dall'ultimo stipendio a oggi)
     const lastSalaryDate = new Date(nextSalary);
     lastSalaryDate.setMonth(lastSalaryDate.getMonth() - 1);
 
