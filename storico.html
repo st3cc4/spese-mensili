@@ -344,7 +344,7 @@
                 return;
             }
 
-            // CORRETTO: Ordinamento decrescente per data (dalla più recente alla meno recente)
+            // Ordinamento rigoroso e universale per data decrescente (più recente in alto) su TUTTI i filtri
             list.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
                 const dateEu = formatDateToEu(exp.date);
                 listContainer.innerHTML += `
