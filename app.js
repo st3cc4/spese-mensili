@@ -120,7 +120,7 @@ document.getElementById('close-salary-modal').addEventListener('click', () => {
     salaryModal.classList.add('hidden');
 });
 
-// Salvataggio dati da dentro il pop-up (gestione corretta della virgola e delle espressioni)
+// Salvataggio dati da dentro il pop-up
 document.getElementById('save-salary-modal-btn').addEventListener('click', async () => {
     const baseRaw = document.getElementById('modal-salary-base').value.trim().replace(',', '.');
     const base = parseFloat(baseRaw) || 0;
@@ -128,7 +128,6 @@ document.getElementById('save-salary-modal-btn').addEventListener('click', async
 
     let evaluatedExtra = 0;
     try {
-        // Sostituisce eventuali virgole con punti anche dentro l'espressione extra
         const normalizedExtra = extraInput.replace(',', '.');
         const sanitized = normalizedExtra.replace(/[^0-9+\-.\s]/g, '');
         evaluatedExtra = sanitized ? eval(sanitized) : 0;
@@ -145,7 +144,7 @@ document.getElementById('save-salary-modal-btn').addEventListener('click', async
     const docSnap = await getDoc(docRef);
     let currentData = docSnap.exists() ? docSnap.data() : {};
     
-    currentData.stipendio = document.getElementById('modal-salary-base').value.trim(); // Salviamo il testo originale con virgola o punto
+    currentData.stipendio = document.getElementById('modal-salary-base').value.trim();
     currentData.extra = evaluatedExtra;
     currentData.extraExpression = extraInput;
 
@@ -155,11 +154,11 @@ document.getElementById('save-salary-modal-btn').addEventListener('click', async
     calculateDashboard();
 });
 
-// Funzione di utilità per Capitalize
-function capitalize(str) {
+// Funzione Capitalize modificata: maiuscola solo alla prima lettera, il resto invariato
+function capitalizeFirstOnly(str) {
     if (!str) return "";
     str = str.trim();
-    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 // Funzione di utilità per convertire data da ISO (YYYY-MM-DD) a Europea (DD/MM/YYYY)
@@ -172,15 +171,15 @@ function formatDateToEu(dateStr) {
     return dateStr;
 }
 
-// Gestione Categorie con Datalist dinamica
+// Gestione Categorie con Datalist dinamica ordinata alfabeticamente
 async function loadCategories() {
     try {
         const docRef = doc(db, "config", "impostazioni");
         const docSnap = await getDoc(docRef);
         if (docSnap.exists() && docSnap.data().categorie) {
             let rawCategories = docSnap.data().categorie;
-            let normalizedSet = new Set(rawCategories.map(c => capitalize(c)));
-            categories = Array.from(normalizedSet).sort();
+            let normalizedSet = new Set(rawCategories.map(c => capitalizeFirstOnly(c)));
+            categories = Array.from(normalizedSet).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
         } else {
             categories = [];
         }
@@ -207,7 +206,7 @@ document.getElementById('quick-add-category-btn').addEventListener('click', asyn
     let trimmed = inputName.trim();
 
     if (trimmed.startsWith('-')) {
-        let targetCat = capitalize(trimmed.substring(1));
+        let targetCat = capitalizeFirstOnly(trimmed.substring(1));
         const index = categories.indexOf(targetCat);
         if (index > -1) {
             if (confirm(`Vuoi davvero eliminare la categoria "${targetCat}"?`)) {
@@ -223,11 +222,11 @@ document.getElementById('quick-add-category-btn').addEventListener('click', asyn
         return;
     }
 
-    const formattedName = capitalize(trimmed);
+    const formattedName = capitalizeFirstOnly(trimmed);
 
     if (!categories.includes(formattedName)) {
         categories.push(formattedName);
-        categories.sort();
+        categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
         await saveCategoriesToFirebase();
         renderCategories();
         document.getElementById('expense-category').value = formattedName;
@@ -302,7 +301,7 @@ document.getElementById('expense-form').addEventListener('submit', async (e) => 
     const amount = parseFloat(amountInput) || 0;
     const date = document.getElementById('expense-date').value;
     const rawCat = document.getElementById('expense-category').value;
-    const category = capitalize(rawCat);
+    const category = capitalizeFirstOnly(rawCat);
 
     if (!category) {
         alert("Inserisci una categoria valida.");
@@ -311,7 +310,7 @@ document.getElementById('expense-form').addEventListener('submit', async (e) => 
 
     if (!categories.includes(category)) {
         categories.push(category);
-        categories.sort();
+        categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
         await saveCategoriesToFirebase();
         renderCategories();
     }
@@ -361,7 +360,7 @@ window.deleteExpense = async (id) => {
     }
 };
 
-// Calcoli Dashboard corretti
+// Calcoli Dashboard
 function calculateDashboard() {
     const spentToday = expenses
         .filter(e => e.date === todayStr)
@@ -386,7 +385,6 @@ function calculateDashboard() {
     
     document.getElementById('days-left').innerText = diffDays > 0 ? diffDays : 0;
 
-    // Calcolo corretto del periodo di riferimento (dall'ultimo stipendio a oggi)
     const lastSalaryDate = new Date(nextSalary);
     lastSalaryDate.setMonth(lastSalaryDate.getMonth() - 1);
 
