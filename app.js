@@ -18,7 +18,7 @@ const todayStr = `${year}-${month}-${day}`;
 
 document.getElementById('expense-date').value = todayStr;
 
-// Controllo Stato Autenticazione
+// Controllo Stato Autenticazione Fluido (Nasconde il login finché non verifica)
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
@@ -159,6 +159,16 @@ function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
+// Funzione di utilità per convertire data da ISO (YYYY-MM-DD) a Europea (DD/MM/YYYY)
+function formatDateToEu(dateStr) {
+    if (!dateStr) return "";
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return dateStr;
+}
+
 // Gestione Categorie
 async function loadCategories() {
     try {
@@ -264,11 +274,12 @@ function renderExpenses() {
     }
 
     todayExpenses.forEach(exp => {
+        const dateEu = formatDateToEu(exp.date); // Data in formato europeo
         list.innerHTML += `
             <div class="expense-item">
                 <div class="item-info">
                     <span class="item-title">${exp.category}</span>
-                    <span class="item-sub">${exp.date}</span>
+                    <span class="item-sub">${dateEu}</span>
                 </div>
                 <div class="item-actions">
                     <strong style="margin-right:8px;">€ ${exp.amount.toFixed(2)}</strong>
