@@ -67,7 +67,7 @@
                 </div>
             </div>
 
-            <!-- Modulo Inserimento / Modifica Spesa (Sfondo ancora più vivace e in evidenza) -->
+            <!-- Modulo Inserimento / Modifica Spesa (Con ricerca ricerca/filtro categorie) -->
             <div class="card card-highlight">
                 <h3 id="form-expense-title">Aggiungi Nuova Spesa</h3>
                 <form id="expense-form">
@@ -83,9 +83,9 @@
                     <div class="form-group">
                         <label>Categoria</label>
                         <div class="category-select-wrapper">
-                            <select id="expense-category" required>
-                                <option value="">Seleziona...</option>
-                            </select>
+                            <!-- Campo Input di ricerca + datalist per suggerimenti dinamici -->
+                            <input type="text" id="expense-category" list="categories-list" required placeholder="Scrivi o seleziona categoria..." autocomplete="off">
+                            <datalist id="categories-list"></datalist>
                             <button type="button" id="quick-add-category-btn" class="btn-orange-add" title="Aggiungi Categoria">+</button>
                         </div>
                     </div>
