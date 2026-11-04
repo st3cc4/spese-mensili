@@ -15,8 +15,17 @@
     </header>
 
     <div class="container">
-        <!-- Filtri del Periodo -->
+        <!-- Campo di Ricerca Rapida Testuale -->
         <div class="card card-highlight">
+            <h3>Cerca Spesa</h3>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Filtra per Categoria o Importo</label>
+                <input type="text" id="search-input" placeholder="Es. Sigarette o 11.00">
+            </div>
+        </div>
+
+        <!-- Filtri del Periodo -->
+        <div class="card">
             <h3>Seleziona Periodo</h3>
             <div class="form-group">
                 <label>Tipo di Filtro</label>
@@ -54,7 +63,7 @@
             </div>
 
             <!-- Selezione periodo personalizzato con calendario unico Inizio/Fine -->
-            <div id="custom-date-container" class="form-group hidden">
+            <div id="custom-date-container" class="hidden">
                 <label>Seleziona Intervallo Date (Inizio -> Fine)</label>
                 <input type="text" id="date-range-picker" placeholder="Scegli data inizio e data fine">
             </div>
@@ -191,9 +200,21 @@
         });
 
         document.getElementById('apply-filter-btn').addEventListener('click', applyFilter);
+        document.getElementById('search-input').addEventListener('input', applyFilter); // Ricerca in tempo reale
+
+        // Funzione di utilità per convertire la data da ISO (YYYY-MM-DD) a Europea (DD/MM/YYYY)
+        function formatDateToEu(dateStr) {
+            if (!dateStr) return "";
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return dateStr;
+        }
 
         function applyFilter() {
             const type = document.getElementById('filter-type').value;
+            const searchText = document.getElementById('search-input').value.toLowerCase().trim();
             let from, to;
 
             if (type === 'day') {
@@ -250,9 +271,20 @@
                 to.setHours(23,59,59,999);
             }
 
+            // Filtro per data e per testo di ricerca (categoria o importo)
             const filtered = expenses.filter(e => {
                 const d = new Date(e.date);
-                return d >= from && d <= to;
+                const matchDate = (d >= from && d <= to);
+                
+                if (!matchDate) return false;
+
+                if (searchText) {
+                    const catMatch = (e.category || "").toLowerCase().includes(searchText);
+                    const amountMatch = e.amount.toFixed(2).includes(searchText) || e.amount.toString().includes(searchText);
+                    return catMatch || amountMatch;
+                }
+
+                return true;
             });
 
             renderResults(filtered);
@@ -272,7 +304,7 @@
             catContainer.innerHTML = '';
             
             if (Object.keys(catTotals).length === 0) {
-                catContainer.innerHTML = '<div style="font-size: 12px; color: #888; padding: 6px;">Nessuna spesa in questo periodo.</div>';
+                catContainer.innerHTML = '<div style="font-size: 12px; color: #888; padding: 6px;">Nessuna spesa trovata.</div>';
             } else {
                 for (const [cat, sum] of Object.entries(catTotals)) {
                     catContainer.innerHTML += `
@@ -293,11 +325,12 @@
             }
 
             list.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
+                const dateEu = formatDateToEu(exp.date); // Data convertita in GG/MM/AAAA
                 listContainer.innerHTML += `
                     <div class="expense-item">
                         <div class="item-info">
                             <span class="item-title">${exp.category || "Altro"}</span>
-                            <span class="item-sub">${exp.date}</span>
+                            <span class="item-sub">${dateEu}</span>
                         </div>
                         <div class="item-actions">
                             <strong style="margin-right:8px;">€ ${parseFloat(exp.amount).toFixed(2)}</strong>
@@ -309,18 +342,14 @@
             });
         }
 
-        // Funzione per reindirizzare alla Dashboard con i dati pronti per la modifica
         window.editExpenseRedirect = (id, amount, date, category) => {
-            // Salviamo temporaneamente i dati nel localStorage del browser per passarli alla dashboard
             localStorage.setItem('edit_id', id);
             localStorage.setItem('edit_amount', amount);
             localStorage.setItem('edit_date', date);
             localStorage.setItem('edit_category', category);
-            // Ti porta direttamente alla dashboard
             window.location.href = "index.html";
         };
 
-        // Funzione per eliminare una spesa direttamente dallo storico
         window.deleteExpenseFromHistory = async (id) => {
             if (confirm("Vuoi cancellare questa spesa?")) {
                 try {
