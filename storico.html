@@ -28,7 +28,7 @@
             flex: 1;
         }
         
-        /* Card metriche con etichetta sopra e importo a capo con l'euro */
+        /* Card metriche con etichetta sopra e importo sotto con il simbolo € davanti */
         .metric-box-stack {
             flex: 1;
             background-color: #f8f9fa;
@@ -49,9 +49,9 @@
             font-size: 15px;
             font-weight: bold;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
-            line-height: 1.2;
+            gap: 4px;
         }
     </style>
 </head>
@@ -71,7 +71,7 @@
             </div>
         </div>
 
-        <!-- Filtri del Periodo (Con etichette a sinistra e campi a destra) -->
+        <!-- Filtri del Periodo -->
         <div class="card">
             <h3>Seleziona Periodo</h3>
             <div class="filter-group-horizontal">
@@ -120,20 +120,20 @@
         <div class="card">
             <h3>Risultati Periodo</h3>
             
-            <!-- Griglia Metriche: Entrate e Spese con € a capo -->
+            <!-- Griglia Metriche: Totale Entrate e Totale Speso -->
             <div class="metric-grid" style="margin-bottom: 8px;">
                 <div class="metric-box-stack">
                     <span>Totale Entrate</span>
                     <div class="amount-line" style="color: #28a745;">
-                        <span id="filter-income-val" style="font-size: 15px; font-weight: bold; color: #28a745; display: inline; text-transform: none;">0.00</span>
-                        <span style="font-size: 12px; font-weight: normal; color: #28a745; display: inline; text-transform: none;">€</span>
+                        <span>€</span>
+                        <span id="filter-income-val">0.00</span>
                     </div>
                 </div>
                 <div class="metric-box-stack">
                     <span>Totale Speso</span>
                     <div class="amount-line" style="color: #dc3545;">
-                        <span id="filter-total-val" style="font-size: 15px; font-weight: bold; color: #dc3545; display: inline; text-transform: none;">0.00</span>
-                        <span style="font-size: 12px; font-weight: normal; color: #dc3545; display: inline; text-transform: none;">€</span>
+                        <span>€</span>
+                        <span id="filter-total-val">0.00</span>
                     </div>
                 </div>
             </div>
