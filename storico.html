@@ -7,6 +7,53 @@
     <link rel="stylesheet" href="style.css">
     <!-- Flatpickr CSS per calendario intervallo date unico -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        /* Stili specifici per l'allineamento orizzontale dei filtri e delle card metriche */
+        .filter-group-horizontal {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .filter-group-horizontal label {
+            flex: 0 0 110px;
+            font-size: 12px;
+            color: #3b5998;
+            font-weight: 600;
+            margin-bottom: 0;
+        }
+        .filter-group-horizontal select, 
+        .filter-group-horizontal input {
+            flex: 1;
+        }
+        
+        /* Card metriche con etichetta sopra e importo a capo con l'euro */
+        .metric-box-stack {
+            flex: 1;
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 10px 8px;
+            text-align: center;
+        }
+        .metric-box-stack span {
+            display: block;
+            font-size: 10px;
+            color: #6c757d;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .metric-box-stack .amount-line {
+            font-size: 15px;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1.2;
+        }
+    </style>
 </head>
 <body>
 
@@ -18,16 +65,16 @@
         <!-- Campo di Ricerca Rapida Testuale -->
         <div class="card card-highlight">
             <h3>Cerca Spesa</h3>
-            <div class="form-group" style="margin-bottom: 0;">
-                <label>Filtra per Categoria o Importo</label>
+            <div class="form-group filter-group-horizontal" style="margin-bottom: 0;">
+                <label>Filtra testo</label>
                 <input type="text" id="search-input" placeholder="Es. Sigarette o 11.00">
             </div>
         </div>
 
-        <!-- Filtri del Periodo -->
+        <!-- Filtri del Periodo (Con etichette a sinistra e campi a destra) -->
         <div class="card">
             <h3>Seleziona Periodo</h3>
-            <div class="form-group">
+            <div class="filter-group-horizontal">
                 <label>Tipo di Filtro</label>
                 <select id="filter-type">
                     <option value="day">Giorno</option>
@@ -39,33 +86,33 @@
             </div>
 
             <!-- Selezione Giorno Singolo -->
-            <div id="selector-day-container" class="form-group hidden">
-                <label>Seleziona Giorno</label>
+            <div id="selector-day-container" class="filter-group-horizontal hidden">
+                <label>Giorno</label>
                 <input type="date" id="select-day">
             </div>
 
             <!-- Selezione Mese -->
-            <div id="selector-month-container" class="form-group">
-                <label>Seleziona Mese</label>
+            <div id="selector-month-container" class="filter-group-horizontal">
+                <label>Mese</label>
                 <input type="month" id="select-month">
             </div>
 
             <!-- Selezione Settimana -->
-            <div id="selector-week-container" class="form-group hidden">
-                <label>Seleziona Settimana</label>
+            <div id="selector-week-container" class="filter-group-horizontal hidden">
+                <label>Settimana</label>
                 <input type="week" id="select-week">
             </div>
 
             <!-- Selezione Anno -->
-            <div id="selector-year-container" class="form-group hidden">
-                <label>Seleziona Anno</label>
+            <div id="selector-year-container" class="filter-group-horizontal hidden">
+                <label>Anno</label>
                 <select id="select-year"></select>
             </div>
 
             <!-- Selezione periodo personalizzato con calendario unico Inizio/Fine -->
-            <div id="custom-date-container" class="hidden">
-                <label>Seleziona Intervallo Date (Inizio -> Fine)</label>
-                <input type="text" id="date-range-picker" placeholder="Scegli data inizio e data fine">
+            <div id="custom-date-container" class="filter-group-horizontal hidden">
+                <label>Intervallo</label>
+                <input type="text" id="date-range-picker" placeholder="Inizio -> Fine">
             </div>
         </div>
 
@@ -73,15 +120,21 @@
         <div class="card">
             <h3>Risultati Periodo</h3>
             
-            <!-- Griglia Metriche: Entrate e Spese Affiancate -->
+            <!-- Griglia Metriche: Entrate e Spese con € a capo -->
             <div class="metric-grid" style="margin-bottom: 8px;">
-                <div class="metric-box">
+                <div class="metric-box-stack">
                     <span>Totale Entrate</span>
-                    <strong id="filter-income" style="font-size: 16px; color: #28a745;">€ 0.00</strong>
+                    <div class="amount-line" style="color: #28a745;">
+                        <span id="filter-income-val" style="font-size: 15px; font-weight: bold; color: #28a745; display: inline; text-transform: none;">0.00</span>
+                        <span style="font-size: 12px; font-weight: normal; color: #28a745; display: inline; text-transform: none;">€</span>
+                    </div>
                 </div>
-                <div class="metric-box">
+                <div class="metric-box-stack">
                     <span>Totale Speso</span>
-                    <strong id="filter-total" style="font-size: 16px; color: #dc3545;">€ 0.00</strong>
+                    <div class="amount-line" style="color: #dc3545;">
+                        <span id="filter-total-val" style="font-size: 15px; font-weight: bold; color: #dc3545; display: inline; text-transform: none;">0.00</span>
+                        <span style="font-size: 12px; font-weight: normal; color: #dc3545; display: inline; text-transform: none;">€</span>
+                    </div>
                 </div>
             </div>
 
@@ -336,9 +389,8 @@
 
         function renderResults(list, from, to, type) {
             const totalSpent = list.reduce((sum, e) => sum + e.amount, 0);
-            document.getElementById('filter-total').innerText = `€ ${totalSpent.toFixed(2)}`;
+            document.getElementById('filter-total-val').innerText = totalSpent.toFixed(2);
 
-            // Calcolo proporzionale delle entrate in base al periodo selezionato
             let totalIncome = 0;
             const monthlyIncome = (salaryConfig.base || 0) + (salaryConfig.extra || 0);
 
@@ -347,9 +399,9 @@
             } else if (type === 'year') {
                 totalIncome = monthlyIncome * 12;
             } else if (type === 'day') {
-                totalIncome = monthlyIncome / 30; // stima giornaliera
+                totalIncome = monthlyIncome / 30;
             } else if (type === 'week') {
-                totalIncome = monthlyIncome / 4.33; // stima settimanale
+                totalIncome = monthlyIncome / 4.33;
             } else if (type === 'custom' && from && to) {
                 const diffTime = Math.abs(to - from);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
@@ -358,7 +410,7 @@
                 totalIncome = monthlyIncome;
             }
 
-            document.getElementById('filter-income').innerText = `€ ${totalIncome.toFixed(2)}`;
+            document.getElementById('filter-income-val').innerText = totalIncome.toFixed(2);
 
             const netBalance = totalIncome - totalSpent;
             const balanceElement = document.getElementById('filter-balance');
