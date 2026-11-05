@@ -80,7 +80,7 @@ header h1 {
 }
 
 .form-group-horizontal label {
-    flex: 0 0 95px; /* Larghezza fissa per l'etichetta a sinistra */
+    flex: 0 0 95px;
     margin-bottom: 0;
     font-size: 12px;
     color: #3b5998;
@@ -183,7 +183,7 @@ input, select {
     text-align: center;
 }
 
-/* Stile per disporre le scritte in orizzontale dentro le 4 card */
+/* Stile per disporre le scritte in orizzontale dentro le card della dashboard */
 .metric-horizontal {
     display: flex;
     justify-content: space-between;
@@ -203,6 +203,19 @@ input, select {
 .metric-horizontal strong {
     font-size: 15px;
     color: #333;
+}
+
+/* Stili specifici per i totali colorati nello Storico */
+#filter-income-val {
+    color: #28a745 !important;
+    font-size: 16px !important;
+    font-weight: bold !important;
+}
+
+#filter-total-val {
+    color: #dc3545 !important;
+    font-size: 16px !important;
+    font-weight: bold !important;
 }
 
 .expense-item {
