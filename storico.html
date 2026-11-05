@@ -28,7 +28,7 @@
             flex: 1;
         }
         
-        /* Card metriche con etichetta sopra e importo grande e colorato sotto */
+        /* Card metriche con etichetta sopra e importo sotto */
         .metric-box-stack {
             flex: 1;
             background-color: #f8f9fa;
@@ -120,19 +120,19 @@
         <div class="card">
             <h3>Risultati Periodo</h3>
             
-            <!-- Griglia Metriche: Totale Entrate e Totale Speso colorati -->
+            <!-- Griglia Metriche: Totale Entrate e Totale Speso -->
             <div class="metric-grid" style="margin-bottom: 8px;">
                 <div class="metric-box-stack">
                     <span>Totale Entrate</span>
-                    <div class="amount-line" style="color: #28a745;">
-                        <span>€</span>
+                    <div class="amount-line">
+                        <span style="color: #28a745;">€</span>
                         <span id="filter-income-val">0.00</span>
                     </div>
                 </div>
                 <div class="metric-box-stack">
                     <span>Totale Speso</span>
-                    <div class="amount-line" style="color: #dc3545;">
-                        <span>€</span>
+                    <div class="amount-line">
+                        <span style="color: #dc3545;">€</span>
                         <span id="filter-total-val">0.00</span>
                     </div>
                 </div>
@@ -450,7 +450,7 @@
                 return;
             }
 
-            list.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
+            list.sort((a, b) => new Date(b.date) - new Date(b.date)).forEach(exp => {
                 const dateEu = formatDateToEu(exp.date);
                 listContainer.innerHTML += `
                     <div class="expense-item">
