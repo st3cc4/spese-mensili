@@ -37,7 +37,7 @@
             padding: 10px 8px;
             text-align: center;
         }
-        .metric-box-stack span {
+        .metric-box-stack span.metric-title {
             display: block;
             font-size: 10px;
             color: #6c757d;
@@ -46,12 +46,10 @@
             margin-bottom: 4px;
         }
         .metric-box-stack .amount-line {
-            font-size: 16px;
-            font-weight: bold;
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 4px;
+            gap: 3px;
         }
     </style>
 </head>
@@ -67,7 +65,7 @@
             <h3>Cerca Spesa</h3>
             <div class="form-group filter-group-horizontal" style="margin-bottom: 0;">
                 <label>Filtra testo</label>
-                <input type="text" id="search-input" placeholder="Es. Sigarette o 11.00">
+                <input type="text" id="search-input" placeholder="Es. Sigarettes o 11.00">
             </div>
         </div>
 
@@ -123,17 +121,17 @@
             <!-- Griglia Metriche: Totale Entrate e Totale Speso -->
             <div class="metric-grid" style="margin-bottom: 8px;">
                 <div class="metric-box-stack">
-                    <span>Totale Entrate</span>
+                    <span class="metric-title">Totale Entrate</span>
                     <div class="amount-line">
-                        <span style="color: #28a745;">€</span>
-                        <span id="filter-income-val">0.00</span>
+                        <span class="income-amount">€</span>
+                        <span id="filter-income-val" class="income-amount">0.00</span>
                     </div>
                 </div>
                 <div class="metric-box-stack">
-                    <span>Totale Speso</span>
+                    <span class="metric-title">Totale Speso</span>
                     <div class="amount-line">
-                        <span style="color: #dc3545;">€</span>
-                        <span id="filter-total-val">0.00</span>
+                        <span class="expense-amount">€</span>
+                        <span id="filter-total-val" class="expense-amount">0.00</span>
                     </div>
                 </div>
             </div>
@@ -450,7 +448,7 @@
                 return;
             }
 
-            list.sort((a, b) => new Date(b.date) - new Date(b.date)).forEach(exp => {
+            list.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
                 const dateEu = formatDateToEu(exp.date);
                 listContainer.innerHTML += `
                     <div class="expense-item">
