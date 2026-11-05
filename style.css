@@ -70,6 +70,27 @@ header h1 {
     text-overflow: ellipsis;
 }
 
+/* Stile per disporre etichetta e input sulla stessa riga nel modulo spesa */
+.form-group-horizontal {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.form-group-horizontal label {
+    flex: 0 0 95px; /* Larghezza fissa per l'etichetta a sinistra */
+    margin-bottom: 0;
+    font-size: 12px;
+    color: #3b5998;
+}
+
+.form-group-horizontal input, 
+.form-group-horizontal .category-select-wrapper {
+    flex: 1;
+}
+
 input, select {
     width: 100%;
     padding: 10px;
