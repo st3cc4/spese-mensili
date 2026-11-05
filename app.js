@@ -9,7 +9,7 @@ let categories = [];
 let expenses = [];
 let salaryData = { nextDate: "", base: 0, extra: 0, extraExpression: "" };
 
-// Data di Oggi locale
+// Data di Oggi locale in formato YYYY-MM-DD
 const todayLocal = new Date();
 const year = todayLocal.getFullYear();
 const month = String(todayLocal.getMonth() + 1).padStart(2, '0');
@@ -74,7 +74,6 @@ async function loadUserData() {
     await loadSalary();
     await loadCategories();
     await loadExpenses();
-    calculateDashboard();
 }
 
 // Gestione Stipendio e salvataggio automatico data
@@ -121,7 +120,7 @@ document.getElementById('close-salary-modal').addEventListener('click', () => {
     salaryModal.classList.add('hidden');
 });
 
-// Salvataggio dati da dentro il pop-up con calcolo matematico sicuro dell'extra
+// Salvataggio dati da dentro il pop-up
 document.getElementById('save-salary-modal-btn').addEventListener('click', async () => {
     const baseRaw = document.getElementById('modal-salary-base').value.trim().replace(',', '.');
     const base = parseFloat(baseRaw) || 0;
@@ -155,7 +154,7 @@ document.getElementById('save-salary-modal-btn').addEventListener('click', async
     calculateDashboard();
 });
 
-// Funzione Capitalize modificata: maiuscola solo alla prima lettera, il resto invariato
+// Funzione Capitalize: maiuscola solo alla prima lettera, il resto invariato
 function capitalizeFirstOnly(str) {
     if (!str) return "";
     str = str.trim();
@@ -261,6 +260,7 @@ async function loadExpenses() {
             });
         });
         renderExpenses();
+        calculateDashboard(); // Ricalcola subito dopo aver caricato le spese
     } catch (e) {
         console.error("Errore caricamento spese:", e);
     }
@@ -326,7 +326,6 @@ document.getElementById('expense-form').addEventListener('submit', async (e) => 
 
     resetForm();
     await loadExpenses();
-    calculateDashboard();
 });
 
 window.editExpense = (id) => {
@@ -357,12 +356,12 @@ window.deleteExpense = async (id) => {
     if (confirm("Vuoi cancellare questa spesa?")) {
         await deleteDoc(doc(db, "spese", id));
         await loadExpenses();
-        calculateDashboard();
     }
 };
 
-// Calcoli Dashboard
+// Calcoli Dashboard corretti e reattivi
 function calculateDashboard() {
+    // Calcola il totale speso oggi confrontando direttamente le date in formato YYYY-MM-DD
     const spentToday = expenses
         .filter(e => e.date === todayStr)
         .reduce((sum, e) => sum + e.amount, 0);
@@ -375,10 +374,11 @@ function calculateDashboard() {
         return;
     }
 
-    const nextSalary = new Date(salaryData.nextDate);
+    const nextSalaryParts = salaryData.nextDate.split('-');
+    const nextSalary = new Date(parseInt(nextSalaryParts[0]), parseInt(nextSalaryParts[1]) - 1, parseInt(nextSalaryParts[2]));
     nextSalary.setHours(0,0,0,0);
 
-    const todayDateObj = new Date(year, month - 1, day);
+    const todayDateObj = new Date(year, parseInt(month) - 1, parseInt(day));
     todayDateObj.setHours(0,0,0,0);
 
     const diffTime = nextSalary - todayDateObj;
@@ -389,13 +389,17 @@ function calculateDashboard() {
     const lastSalaryDate = new Date(nextSalary);
     lastSalaryDate.setMonth(lastSalaryDate.getMonth() - 1);
 
+    // Somma tutte le spese rientranti nel periodo tra lo stipendio precedente e oggi
     const currentPeriodExpenses = expenses.filter(e => {
-        const expDate = new Date(e.date);
+        if (!e.date) return false;
+        const p = e.date.split('-');
+        const expDate = new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
+        expDate.setHours(0,0,0,0);
         return expDate >= lastSalaryDate && expDate <= todayDateObj;
     }).reduce((sum, e) => sum + e.amount, 0);
 
-    const totalSalary = (salaryData.base || 0) + (salaryData.extra || 0);
-    const residue = totalSalary - currentPeriodExpenses;
+    const totalIncome = (salaryData.base || 0) + (salaryData.extra || 0);
+    const residue = totalIncome - currentPeriodExpenses;
     document.getElementById('salary-residue').innerText = `€ ${residue.toFixed(2)}`;
 
     const daysRemaining = diffDays > 0 ? diffDays : 1;
