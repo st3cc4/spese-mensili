@@ -260,7 +260,7 @@ async function loadExpenses() {
             });
         });
         renderExpenses();
-        calculateDashboard(); // Ricalcola subito dopo aver caricato le spese
+        calculateDashboard(); 
     } catch (e) {
         console.error("Errore caricamento spese:", e);
     }
@@ -361,7 +361,7 @@ window.deleteExpense = async (id) => {
 
 // Calcoli Dashboard corretti e reattivi
 function calculateDashboard() {
-    // Calcola il totale speso oggi confrontando direttamente le date in formato YYYY-MM-DD
+    // 1. Speso oggi
     const spentToday = expenses
         .filter(e => e.date === todayStr)
         .reduce((sum, e) => sum + e.amount, 0);
@@ -389,7 +389,8 @@ function calculateDashboard() {
     const lastSalaryDate = new Date(nextSalary);
     lastSalaryDate.setMonth(lastSalaryDate.getMonth() - 1);
 
-    // Somma tutte le spese rientranti nel periodo tra lo stipendio precedente e oggi
+    // 2. Totale spese di tutto il periodo corrente (dallo stipendio precedente a oggi)
+    // NOTA: Usiamo <= per includere correttamente anche le spese registrate oggi nel computo del residuo!
     const currentPeriodExpenses = expenses.filter(e => {
         if (!e.date) return false;
         const p = e.date.split('-');
@@ -398,10 +399,12 @@ function calculateDashboard() {
         return expDate >= lastSalaryDate && expDate <= todayDateObj;
     }).reduce((sum, e) => sum + e.amount, 0);
 
+    // 3. Calcolo residuo totale
     const totalIncome = (salaryData.base || 0) + (salaryData.extra || 0);
     const residue = totalIncome - currentPeriodExpenses;
     document.getElementById('salary-residue').innerText = `€ ${residue.toFixed(2)}`;
 
+    // 4. Budget disponibile al giorno
     const daysRemaining = diffDays > 0 ? diffDays : 1;
     const dailyBudget = residue > 0 ? (residue / daysRemaining) : 0;
     document.getElementById('daily-budget').innerText = `€ ${dailyBudget.toFixed(2)}`;
