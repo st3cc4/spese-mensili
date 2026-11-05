@@ -205,14 +205,14 @@ input, select {
     color: #333;
 }
 
-/* Stili specifici per i totali colorati nello Storico (ingranditi a 17.5px) */
-#filter-income-val {
+/* Stili specifici per i totali e il simbolo euro nello Storico (stessa dimensione a 17.5px) */
+.income-amount {
     color: #28a745 !important;
     font-size: 17.5px !important;
     font-weight: bold !important;
 }
 
-#filter-total-val {
+.expense-amount {
     color: #dc3545 !important;
     font-size: 17.5px !important;
     font-weight: bold !important;
