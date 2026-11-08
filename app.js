@@ -390,7 +390,6 @@ function calculateDashboard() {
     lastSalaryDate.setMonth(lastSalaryDate.getMonth() - 1);
 
     // 2. Totale spese di tutto il periodo corrente (dallo stipendio precedente a oggi)
-    // NOTA: Usiamo <= per includere correttamente anche le spese registrate oggi nel computo del residuo!
     const currentPeriodExpenses = expenses.filter(e => {
         if (!e.date) return false;
         const p = e.date.split('-');
