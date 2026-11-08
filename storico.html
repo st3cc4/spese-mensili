@@ -179,7 +179,7 @@
         let selectedCustomFrom = null;
         let selectedCustomTo = null;
 
-        // Tabella degli stipendi mensili esatti per il 2026 (o anno corrente)
+        // Tabella ufficiale degli stipendi mensili per il 2026
         const monthlySalaries2026 = {
             "2026-01": 1733.19,
             "2026-02": 1895.23,
@@ -408,31 +408,55 @@
             let totalIncome = 0;
 
             if (type === 'month') {
-                const monthVal = document.getElementById('select-month').value; // Es. "2026-10"
-                totalIncome = monthlySalaries2026[monthVal] !== undefined ? monthlySalaries2026[monthVal] : ((salaryConfig.base || 0) + (salaryConfig.extra || 0));
+                const monthVal = document.getElementById('select-month').value; // Es. "2026-11"
+                totalIncome = monthlySalaries2026[monthVal] !== undefined ? monthlySalaries2026[monthVal] : 0;
             } 
             else if (type === 'day') {
-                const dayVal = document.getElementById('select-day').value; // Es. "2026-10-09"
+                const dayVal = document.getElementById('select-day').value; // Es. "2026-11-08"
                 const monthKey = dayVal ? dayVal.substring(0, 7) : `${curYear}-${curMonth}`;
-                const monthSal = monthlySalaries2026[monthKey] !== undefined ? monthlySalaries2026[monthKey] : ((salaryConfig.base || 0) + (salaryConfig.extra || 0));
-                totalIncome = monthSal; // Mostra lo stipendio del mese di riferimento del giorno selezionato
+                totalIncome = monthlySalaries2026[monthKey] !== undefined ? monthlySalaries2026[monthKey] : 0;
             } 
             else if (type === 'week') {
+                // Per la settimana prendiamo il mese basato sulla data di inizio della settimana selezionata
                 const weekVal = document.getElementById('select-week').value;
-                // Per la settimana usiamo il mese corrente o di riferimento stimato
-                totalIncome = (salaryConfig.base || 0) + (salaryConfig.extra || 0);
+                if (from) {
+                    const y = from.getFullYear();
+                    const m = String(from.getMonth() + 1).padStart(2, '0');
+                    const monthKey = `${y}-${m}`;
+                    totalIncome = monthlySalaries2026[monthKey] !== undefined ? monthlySalaries2026[monthKey] : 0;
+                } else {
+                    totalIncome = monthlySalaries2026[`${curYear}-${curMonth}`] || 0;
+                }
             } 
             else if (type === 'year') {
-                // Somma esatta di tutti gli stipendi dell'anno che mi hai fornito (15994.57)
+                // Somma esatta di tutti gli stipendi dell'anno (15994.57)
                 totalIncome = Object.values(monthlySalaries2026).reduce((a, b) => a + b, 0);
             } 
             else if (type === 'custom' && from && to) {
-                const diffTime = Math.abs(to - from);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-                const monthlyBase = (salaryConfig.base || 0) + (salaryConfig.extra || 0);
-                totalIncome = (monthlyBase / 30) * diffDays;
+                // Per il personalizzato sommiamo i mesi interi o proporzioniamo in base ai giorni dei mesi compresi nell'intervallo
+                let currentTimestamp = new Date(from);
+                currentTimestamp.setHours(0,0,0,0);
+                const endTimestamp = new Date(to);
+                endTimestamp.setHours(23,59,59,999);
+
+                // Sommiamo lo stipendio dei mesi che cadono interamente o parzialmente nell'intervallo
+                let calculatedCustomIncome = 0;
+                while (currentTimestamp <= endTimestamp) {
+                    const y = currentTimestamp.getFullYear();
+                    const m = String(currentTimestamp.getMonth() + 1).padStart(2, '0');
+                    const monthKey = `${y}-${m}`;
+                    const monthSalary = monthlySalaries2026[monthKey] || 0;
+                    
+                    // Giorni nel mese corrente
+                    const daysInMonth = new Date(y, currentTimestamp.getMonth() + 1, 0).getDate();
+                    const dailyRate = monthSalary / daysInMonth;
+
+                    calculatedCustomIncome += dailyRate;
+                    currentTimestamp.setDate(currentTimestamp.getDate() + 1);
+                }
+                totalIncome = calculatedCustomIncome;
             } else {
-                totalIncome = (salaryConfig.base || 0) + (salaryConfig.extra || 0);
+                totalIncome = monthlySalaries2026[`${curYear}-${curMonth}`] || 0;
             }
 
             document.getElementById('filter-income-val').innerText = totalIncome.toFixed(2);
