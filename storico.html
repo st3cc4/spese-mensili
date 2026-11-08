@@ -179,6 +179,22 @@
         let selectedCustomFrom = null;
         let selectedCustomTo = null;
 
+        // Tabella degli stipendi mensili esatti per il 2026 (o anno corrente)
+        const monthlySalaries2026 = {
+            "2026-01": 1733.19,
+            "2026-02": 1895.23,
+            "2026-03": 1163.78,
+            "2026-04": 1327.81,
+            "2026-05": 1562.19,
+            "2026-06": 1149.45,
+            "2026-07": 2864.79,
+            "2026-08": 1369.93,
+            "2026-09": 1512.63,
+            "2026-10": 1415.57,
+            "2026-11": 0.00,
+            "2026-12": 0.00
+        };
+
         function getISOWeekString(date) {
             const target = new Date(date.valueOf());
             const dayNr = (date.getDay() + 6) % 7;
@@ -390,18 +406,33 @@
             document.getElementById('filter-total-val').innerText = totalSpent.toFixed(2);
 
             let totalIncome = 0;
-            const monthlyIncome = (salaryConfig.base || 0) + (salaryConfig.extra || 0);
 
-            if (type === 'month' || type === 'day' || type === 'week') {
-                totalIncome = monthlyIncome;
-            } else if (type === 'year') {
-                totalIncome = monthlyIncome * 12;
-            } else if (type === 'custom' && from && to) {
+            if (type === 'month') {
+                const monthVal = document.getElementById('select-month').value; // Es. "2026-10"
+                totalIncome = monthlySalaries2026[monthVal] !== undefined ? monthlySalaries2026[monthVal] : ((salaryConfig.base || 0) + (salaryConfig.extra || 0));
+            } 
+            else if (type === 'day') {
+                const dayVal = document.getElementById('select-day').value; // Es. "2026-10-09"
+                const monthKey = dayVal ? dayVal.substring(0, 7) : `${curYear}-${curMonth}`;
+                const monthSal = monthlySalaries2026[monthKey] !== undefined ? monthlySalaries2026[monthKey] : ((salaryConfig.base || 0) + (salaryConfig.extra || 0));
+                totalIncome = monthSal; // Mostra lo stipendio del mese di riferimento del giorno selezionato
+            } 
+            else if (type === 'week') {
+                const weekVal = document.getElementById('select-week').value;
+                // Per la settimana usiamo il mese corrente o di riferimento stimato
+                totalIncome = (salaryConfig.base || 0) + (salaryConfig.extra || 0);
+            } 
+            else if (type === 'year') {
+                // Somma esatta di tutti gli stipendi dell'anno che mi hai fornito (15994.57)
+                totalIncome = Object.values(monthlySalaries2026).reduce((a, b) => a + b, 0);
+            } 
+            else if (type === 'custom' && from && to) {
                 const diffTime = Math.abs(to - from);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-                totalIncome = (monthlyIncome / 30) * diffDays;
+                const monthlyBase = (salaryConfig.base || 0) + (salaryConfig.extra || 0);
+                totalIncome = (monthlyBase / 30) * diffDays;
             } else {
-                totalIncome = monthlyIncome;
+                totalIncome = (salaryConfig.base || 0) + (salaryConfig.extra || 0);
             }
 
             document.getElementById('filter-income-val').innerText = totalIncome.toFixed(2);
