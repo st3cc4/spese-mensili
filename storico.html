@@ -75,22 +75,22 @@
             <div class="filter-group-horizontal">
                 <label>Tipo di Filtro</label>
                 <select id="filter-type">
-                    <option value="day">Giorno</option>
+                    <option value="day" selected>Giorno</option>
                     <option value="week">Settimana</option>
-                    <option value="month" selected>Mese</option>
+                    <option value="month">Mese</option>
                     <option value="year">Anno</option>
                     <option value="custom">Personalizzato</option>
                 </select>
             </div>
 
-            <!-- Selezione Giorno Singolo -->
-            <div id="selector-day-container" class="filter-group-horizontal hidden">
+            <!-- Selezione Giorno Singolo (Visibile di default) -->
+            <div id="selector-day-container" class="filter-group-horizontal">
                 <label>Giorno</label>
                 <input type="date" id="select-day">
             </div>
 
-            <!-- Selezione Mese -->
-            <div id="selector-month-container" class="filter-group-horizontal">
+            <!-- Selezione Mese (Nascosto di default) -->
+            <div id="selector-month-container" class="filter-group-horizontal hidden">
                 <label>Mese</label>
                 <input type="month" id="select-month">
             </div>
@@ -405,7 +405,7 @@
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
                 totalIncome = (monthlyIncome / 30) * diffDays;
             } else {
-                totalIncome = monthlyIncome;
+                totalIncome = monthlyIncome / 30;
             }
 
             document.getElementById('filter-income-val').innerText = totalIncome.toFixed(2);
@@ -466,7 +466,7 @@
             });
         }
 
-        window.editExpenseRedirect = (id, amount, date, category) => {
+        window.editExpenseRedirect = (id, amount, date, category) => { rip
             localStorage.setItem('edit_id', id);
             localStorage.setItem('edit_amount', amount);
             localStorage.setItem('edit_date', date);
