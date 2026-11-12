@@ -42,7 +42,7 @@
                 <button type="button" id="open-salary-modal" class="btn" style="width: auto; padding: 10px 14px; margin-top: 18px; font-size: 13px; background-color: #f9a500ff;" title="Modifica Stipendio ed Extra">⚙️ Stipendio</button>
             </div>
 
-            <!-- Dashboard Calcoli (Con etichette corrette: "Residuo" e "€ al giorno") -->
+            <!-- Dashboard Calcoli -->
             <div class="card">
                 <h3>Riepilogo Budget</h3>
                 <div class="metric-grid">
@@ -86,8 +86,10 @@
                     <div class="form-group form-group-horizontal">
                         <label>Categoria</label>
                         <div class="category-select-wrapper">
-                            <input type="text" id="expense-category" list="categories-list" required placeholder="Scrivi o seleziona..." autocomplete="off">
-                            <datalist id="categories-list"></datalist>
+                            <!-- Sostituito input text con un vero tag select a tendina -->
+                            <select id="expense-category" required style="width: 100%; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; background-color: #fff;">
+                                <option value="" disabled selected>Seleziona categoria...</option>
+                            </select>
                             <button type="button" id="quick-add-category-btn" class="btn-orange-add" title="Aggiungi Categoria">+</button>
                         </div>
                     </div>
