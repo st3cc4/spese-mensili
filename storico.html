@@ -56,23 +56,10 @@
 <body>
 
     <header>
-        <h1>Storico & Filtri</h1>
+        <h1>Storico</h1>
     </header>
 
     <div class="container">
-        <!-- Selezione Modalità Visualizzazione (Personale / Famiglia) -->
-        <div class="card card-highlight">
-            <h3>Visualizzazione</h3>
-            <div class="form-group filter-group-horizontal" style="margin-bottom: 0;">
-                <label>Account</label>
-                <select id="view-mode-select">
-                    <option value="mine" selected>Solo i miei dati</option>
-                    <option value="spouse">Solo i dati di Eleonora</option>
-                    <option value="both">Entrambi (Famiglia)</option>
-                </select>
-            </div>
-        </div>
-
         <!-- Campo di Ricerca Rapida Testuale -->
         <div class="card">
             <h3>Cerca Spesa</h3>
@@ -82,9 +69,21 @@
             </div>
         </div>
 
-        <!-- Filtri del Periodo -->
+        <!-- Filtri del Periodo con Checkbox Account Integrati -->
         <div class="card">
             <h3>Seleziona Periodo</h3>
+            
+            <!-- Selezione Account tramite Checkbox -->
+            <div style="display: flex; gap: 20px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.08); align-items: center;">
+                <label style="font-size: 12px; color: #3b5998; font-weight: 600; margin-bottom: 0;">Account:</label>
+                <label style="font-size: 13px; font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                    <input type="checkbox" id="chk-mine" checked style="width: auto;"> Miei dati
+                </label>
+                <label style="font-size: 13px; font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                    <input type="checkbox" id="chk-spouse" checked style="width: auto;"> Dati di Elena
+                </label>
+            </div>
+
             <div class="filter-group-horizontal">
                 <label>Tipo di Filtro</label>
                 <select id="filter-type">
@@ -175,7 +174,7 @@
             <span style="font-size: 18px;">🏠</span> Dashboard
         </a>
         <a href="storico.html" class="nav-item active">
-            <span style="font-size: 18px;">📊</span> Storico e Filtri
+            <span style="font-size: 18px;">📊</span> Storico
         </a>
     </nav>
 
@@ -332,7 +331,8 @@
         document.getElementById('select-week').addEventListener('input', applyFilter);
         document.getElementById('select-year').addEventListener('change', applyFilter);
         document.getElementById('search-input').addEventListener('input', applyFilter);
-        document.getElementById('view-mode-select').addEventListener('change', applyFilter);
+        document.getElementById('chk-mine').addEventListener('change', applyFilter);
+        document.getElementById('chk-spouse').addEventListener('change', applyFilter);
 
         function formatDateToEu(dateStr) {
             if (!dateStr) return "";
@@ -344,19 +344,21 @@
         }
 
         function applyFilter() {
-            const viewMode = document.getElementById('view-mode-select').value;
+            const chkMine = document.getElementById('chk-mine').checked;
+            const chkSpouse = document.getElementById('chk-spouse').checked;
             const type = document.getElementById('filter-type').value;
             const searchText = document.getElementById('search-input').value.toLowerCase().trim();
             let from, to;
 
+            // Filtra le spese in base ai checkbox attivi
             const visibleExpenses = expenses.filter(e => {
-                if (viewMode === 'mine') {
-                    return e.userId === currentUser.uid;
-                } else if (viewMode === 'spouse') {
-                    return e.userId !== currentUser.uid && e.userId !== "";
-                } else {
-                    return true;
-                }
+                const isMine = (e.userId === currentUser.uid);
+                const isSpouse = (e.userId !== currentUser.uid && e.userId !== "");
+
+                if (chkMine && chkSpouse) return true; // Entrambi
+                if (chkMine && !chkSpouse) return isMine; // Solo miei
+                if (!chkMine && chkSpouse) return isSpouse; // Solo Elena
+                return false; // Nessuno selezionato
             });
 
             if (type === 'day') {
@@ -426,25 +428,28 @@
                 return true;
             });
 
-            renderResults(filtered, from, to, type, viewMode);
+            renderResults(filtered, from, to, type, chkMine, chkSpouse);
         }
 
-        function renderResults(list, from, to, type, viewMode) {
+        function renderResults(list, from, to, type, chkMine, chkSpouse) {
             const totalSpent = list.reduce((sum, e) => sum + e.amount, 0);
             document.getElementById('filter-total-val').innerText = totalSpent.toFixed(2);
 
             let totalIncome = 0;
+            let multiplier = 0;
+            if (chkMine) multiplier++;
+            if (chkSpouse) multiplier++;
 
             if (type === 'month') {
-                const monthVal = document.getElementById('select-month').value; // Es. "2026-11"
+                const monthVal = document.getElementById('select-month').value; 
                 let baseInc = monthlySalaries2026[monthVal] !== undefined ? monthlySalaries2026[monthVal] : 0;
-                totalIncome = viewMode === 'both' ? baseInc * 2 : baseInc;
+                totalIncome = baseInc * multiplier;
             } 
             else if (type === 'day') {
-                const dayVal = document.getElementById('select-day').value; // Es. "2026-11-12"
+                const dayVal = document.getElementById('select-day').value; 
                 const monthKey = dayVal ? dayVal.substring(0, 7) : `${curYear}-${curMonth}`;
                 let baseInc = monthlySalaries2026[monthKey] !== undefined ? monthlySalaries2026[monthKey] : 0;
-                totalIncome = viewMode === 'both' ? baseInc * 2 : baseInc;
+                totalIncome = baseInc * multiplier;
             } 
             else if (type === 'week') {
                 let monthKey = `${curYear}-${curMonth}`;
@@ -454,11 +459,11 @@
                     monthKey = `${y}-${m}`;
                 }
                 let baseInc = monthlySalaries2026[monthKey] !== undefined ? monthlySalaries2026[monthKey] : 0;
-                totalIncome = viewMode === 'both' ? baseInc * 2 : baseInc;
+                totalIncome = baseInc * multiplier;
             } 
             else if (type === 'year') {
                 let yearSum = Object.values(monthlySalaries2026).reduce((a, b) => a + b, 0);
-                totalIncome = viewMode === 'both' ? yearSum * 2 : yearSum;
+                totalIncome = yearSum * multiplier;
             } 
             else if (type === 'custom' && from && to) {
                 let currentTimestamp = new Date(from);
@@ -479,10 +484,10 @@
                     calculatedCustomIncome += dailyRate;
                     currentTimestamp.setDate(currentTimestamp.getDate() + 1);
                 }
-                totalIncome = viewMode === 'both' ? calculatedCustomIncome * 2 : calculatedCustomIncome;
+                totalIncome = calculatedCustomIncome * multiplier;
             } else {
                 let baseInc = monthlySalaries2026[`${curYear}-${curMonth}`] || 0;
-                totalIncome = viewMode === 'both' ? baseInc * 2 : baseInc;
+                totalIncome = baseInc * multiplier;
             }
 
             document.getElementById('filter-income-val').innerText = totalIncome.toFixed(2);
@@ -525,7 +530,7 @@
                 return;
             }
 
-            list.sort((a, b) => new Date(b.date) - new Date(b.date)).forEach(exp => {
+            list.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
                 const dateEu = formatDateToEu(exp.date);
                 listContainer.innerHTML += `
                     <div class="expense-item">
