@@ -105,7 +105,7 @@
         <div class="card">
             <h3>Seleziona Periodo</h3>
             
-            <!-- Selezione Account tramite Checkbox (senza 'checked' statico) -->
+            <!-- Selezione Account tramite Checkbox -->
             <div style="display: flex; gap: 15px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.08); align-items: center; flex-wrap: wrap;">
                 <label style="font-size: 12px; color: #3b5998; font-weight: 600; margin-bottom: 0;">Account:</label>
                 <label style="font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
@@ -282,15 +282,12 @@
             if (user) {
                 currentUser = user;
                 
-                // Riconosce chi è loggato in base all'email
                 const email = (user.email || "").toLowerCase();
                 const isUserLoggedElena = email.includes("ele");
                 
-                // Imposta i nomi corretti sui checkbox in base all'utente
                 document.getElementById('label-user1').innerText = isUserLoggedElena ? "Elena" : "Paolo";
                 document.getElementById('label-user2').innerText = isUserLoggedElena ? "Paolo" : "Elena";
 
-                // Seleziona di default SOLO il primo checkbox (l'utente loggato)
                 document.getElementById('chk-user1').checked = true;
                 document.getElementById('chk-user2').checked = false;
 
@@ -323,7 +320,7 @@
                     amount: parseFloat((data.importo || data.amount || 0).toString().replace(',', '.')) || 0,
                     date: data.data || data.date,
                     category: data.categoria || data.category,
-                    userId: data.userId || ""
+                    userId: data.userId || "" // Se vuoto, appartiene alle vecchie spese di Paolo
                 });
             });
 
@@ -395,13 +392,24 @@
             const searchText = document.getElementById('search-input').value.toLowerCase().trim();
             let from, to;
 
+            const email = (currentUser.email || "").toLowerCase();
+            const isUserLoggedElena = email.includes("ele");
+
             const visibleExpenses = expenses.filter(e => {
-                const isUser1 = (e.userId === currentUser.uid);
-                const isUser2 = (e.userId !== currentUser.uid && e.userId !== "");
+                // Se l'utente loggato è Paolo (user1):
+                // - le sue spese sono quelle con il suo UID OPPURE quelle senza userId (le vecchie)
+                // - le spese di Elena (user2) sono quelle con un userId diverso dal suo E non vuote.
+                const isUser1Expense = isUserLoggedElena 
+                    ? (e.userId === currentUser.uid) 
+                    : (e.userId === currentUser.uid || e.userId === "");
+                
+                const isUser2Expense = isUserLoggedElena 
+                    ? (e.userId !== currentUser.uid || e.userId === "") 
+                    : (e.userId !== currentUser.uid && e.userId !== "");
 
                 if (chkUser1 && chkUser2) return true; 
-                if (chkUser1 && !chkUser2) return isUser1; 
-                if (!chkUser1 && chkUser2) return isUser2; 
+                if (chkUser1 && !chkUser2) return isUser1Expense; 
+                if (!chkUser1 && chkUser2) return isUser2Expense; 
                 return false;
             });
 
@@ -519,7 +527,7 @@
                 while (currentTimestamp <= endTimestamp) {
                     const y = currentTimestamp.getFullYear();
                     const m = String(currentTimestamp.getMonth() + 1).padStart(2, '0');
-                    monthKey = `${y}-${m}`;
+                    const monthKey = `${y}-${m}`;
                     const monthSalary = monthlySalaries2026[monthKey] || 0;
                     
                     const daysInMonth = new Date(y, currentTimestamp.getMonth() + 1, 0).getDate();
