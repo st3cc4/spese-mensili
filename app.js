@@ -1,7 +1,7 @@
 import { 
     auth, db, signInWithEmailAndPassword, createUserWithEmailAndPassword, 
     onAuthStateChanged, signOut, collection, addDoc, getDocs, doc, 
-    updateDoc, deleteDoc, setDoc, getDoc, query, where 
+    updateDoc, deleteDoc, setDoc, getDoc 
 } from "./firebase-config.js";
 
 let currentUser = null;
@@ -17,6 +17,12 @@ const day = String(todayLocal.getDate()).padStart(2, '0');
 const todayStr = `${year}-${month}-${day}`;
 
 document.getElementById('expense-date').value = todayStr;
+
+// Funzione per sapere se l'utente loggato è Elena
+function isUserElena(user) {
+    if (!user || !user.email) return false;
+    return user.email.toLowerCase().includes("ele");
+}
 
 // Controllo Stato Autenticazione Fluido con isolamento dati per utente (UID)
 onAuthStateChanged(auth, async (user) => {
@@ -71,16 +77,26 @@ document.getElementById('logout-btn').addEventListener('click', () => signOut(au
 
 // Caricamento Dati specifici dell'utente loggato
 async function loadUserData() {
-    await loadSalary();
-    await loadCategories();
+    await loadSalaryAndCategories();
     await loadExpenses();
 }
 
-// Gestione Stipendio basata sul documento personale dell'utente (UID)
-async function loadSalary() {
+// Gestione Stipendio e Categorie dal documento personale (con migrazione automatica dal vecchio documento per Paolo)
+async function loadSalaryAndCategories() {
     try {
-        const docRef = doc(db, "config", currentUser.uid);
-        const docSnap = await getDoc(docRef);
+        const userDocRef = doc(db, "config", currentUser.uid);
+        let docSnap = await getDoc(userDocRef);
+
+        // Se sei Paolo e il tuo nuovo documento personale ancora non esiste, recupera i tuoi vecchi dati da "impostazioni"
+        if (!docSnap.exists() && !isUserElena(currentUser)) {
+            const legacyDocRef = doc(db, "config", "impostazioni");
+            const legacySnap = await getDoc(legacyDocRef);
+            if (legacySnap.exists()) {
+                await setDoc(userDocRef, legacySnap.data());
+                docSnap = await getDoc(userDocRef);
+            }
+        }
+
         if (docSnap.exists()) {
             const data = docSnap.data();
             salaryData.nextDate = data.dataProssimoStipendio || "";
@@ -91,15 +107,24 @@ async function loadSalary() {
             document.getElementById('salary-date').value = salaryData.nextDate;
             document.getElementById('modal-salary-base').value = data.stipendio || "";
             document.getElementById('modal-salary-extra').value = salaryData.extraExpression;
+
+            if (data.categorie) {
+                let rawCategories = data.categorie;
+                let normalizedSet = new Set(rawCategories.map(c => capitalizeFirstOnly(c)));
+                categories = Array.from(normalizedSet).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
+            } else {
+                categories = [];
+            }
         } else {
-            // Valori di default se il documento non esiste ancora per questo utente
             salaryData = { nextDate: "", base: 0, extra: 0, extraExpression: "" };
             document.getElementById('salary-date').value = "";
             document.getElementById('modal-salary-base').value = "";
             document.getElementById('modal-salary-extra').value = "";
+            categories = [];
         }
+        renderCategories();
     } catch (e) {
-        console.log("Errore caricamento stipendio:", e);
+        console.log("Errore caricamento impostazioni:", e);
     }
 }
 
@@ -175,24 +200,6 @@ function formatDateToEu(dateStr) {
     return dateStr;
 }
 
-// Gestione Categorie personali dell'utente (salvate nel suo documento config)
-async function loadCategories() {
-    try {
-        const docRef = doc(db, "config", currentUser.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists() && docSnap.data().categorie) {
-            let rawCategories = docSnap.data().categorie;
-            let normalizedSet = new Set(rawCategories.map(c => capitalizeFirstOnly(c)));
-            categories = Array.from(normalizedSet).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
-        } else {
-            categories = [];
-        }
-        renderCategories();
-    } catch (e) {
-        console.error("Errore caricamento categorie:", e);
-    }
-}
-
 function renderCategories() {
     const select = document.getElementById('expense-category');
     select.innerHTML = '<option value="" disabled selected>Seleziona categoria...</option>';
@@ -247,20 +254,32 @@ async function saveCategoriesToFirebase() {
     await setDoc(docRef, currentData);
 }
 
-// Caricamento Spese filtrate esclusivamente per l'utente corrente tramite userId
+// Caricamento Spese filtrate per l'utente corrente (includendo le vecchie spese senza userId per Paolo)
 async function loadExpenses() {
     try {
-        const q = query(collection(db, "spese"), where("userId", "==", currentUser.uid));
+        const q = collection(db, "spese");
         const querySnapshot = await getDocs(q);
         expenses = [];
+        const elenaLogged = isUserElena(currentUser);
+
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            expenses.push({ 
-                id: docSnap.id, 
-                amount: parseFloat((data.importo || data.amount || 0).toString().replace(',', '.')) || 0,
-                date: data.data || data.date,
-                category: data.categoria || data.category 
-            });
+            const expUserId = data.userId || "";
+            
+            // Se è Elena: prende solo le spese con il suo UID.
+            // Se è Paolo: prende le spese con il suo UID oppure quelle vecchie senza userId.
+            const belongsToUser = elenaLogged 
+                ? (expUserId === currentUser.uid)
+                : (expUserId === currentUser.uid || expUserId === "");
+
+            if (belongsToUser) {
+                expenses.push({ 
+                    id: docSnap.id, 
+                    amount: parseFloat((data.importo || data.amount || 0).toString().replace(',', '.')) || 0,
+                    date: data.data || data.date,
+                    category: data.categoria || data.category 
+                });
+            }
         });
         renderExpenses();
         calculateDashboard(); 
