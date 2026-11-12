@@ -42,20 +42,22 @@
 </head>
 <body>
 
-    <!-- Schermata di Accesso -->
-    <div id="auth-screen" class="auth-container hidden">
-        <h2>Accesso Spese Mensili</h2>
-        <form id="login-form">
-            <div class="form-group">
-                <label>Email (ID User)</label>
-                <input type="email" id="email" required placeholder="inserisci email">
-            </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" id="password" required placeholder="inserisci password">
-            </div>
-            <button type="submit" class="btn">Accedi / Registrati</button>
-        </form>
+    <!-- Schermata di Accesso Omogenea -->
+    <div id="auth-screen" class="container hidden" style="max-width: 400px; margin-top: 60px;">
+        <div class="card" style="padding: 20px;">
+            <h3 style="font-size: 16px; color: #3b5998; margin-bottom: 15px; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 8px;">Accesso</h3>
+            <form id="login-form">
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 11px; font-weight: 600; color: #444; margin-bottom: 4px;">Email (ID User)</label>
+                    <input type="email" id="email" required placeholder="inserisci email" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 11px; font-weight: 600; color: #444; margin-bottom: 4px;">Password</label>
+                    <input type="password" id="password" required placeholder="inserisci password" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+                </div>
+                <button type="submit" class="btn" style="width: 100%; padding: 12px; background-color: #3b5998; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">Accedi / Registrati</button>
+            </form>
+        </div>
     </div>
 
     <!-- Applicazione Principale (Dashboard) -->
