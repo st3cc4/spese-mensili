@@ -60,8 +60,21 @@
     </header>
 
     <div class="container">
-        <!-- Campo di Ricerca Rapida Testuale -->
+        <!-- Selezione Modalità Visualizzazione (Personale / Famiglia) -->
         <div class="card card-highlight">
+            <h3>Visualizzazione</h3>
+            <div class="form-group filter-group-horizontal" style="margin-bottom: 0;">
+                <label>Account</label>
+                <select id="view-mode-select">
+                    <option value="mine" selected>Solo i miei dati</option>
+                    <option value="spouse">Solo i dati di Eleonora</option>
+                    <option value="both">Entrambi (Famiglia)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Campo di Ricerca Rapida Testuale -->
+        <div class="card">
             <h3>Cerca Spesa</h3>
             <div class="form-group filter-group-horizontal" style="margin-bottom: 0;">
                 <label>Filtra testo</label>
@@ -173,13 +186,15 @@
     <script type="module">
         import { auth, db, onAuthStateChanged, collection, getDocs, deleteDoc, doc, getDoc } from "./firebase-config.js";
 
+        let currentUser = null;
         let expenses = [];
         let salaryConfig = { base: 0, extra: 0 };
+        let spouseSalaryConfig = { base: 0, extra: 0 };
         let rangePickerInstance = null;
         let selectedCustomFrom = null;
         let selectedCustomTo = null;
 
-        // Tabella ufficiale degli stipendi mensili per il 2026
+        // Tabella stipendi ufficiali 2026 (puoi personalizzarla)
         const monthlySalaries2026 = {
             "2026-01": 1733.19,
             "2026-02": 1895.23,
@@ -236,6 +251,7 @@
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
+                currentUser = user;
                 await loadConfigAndExpenses();
             } else {
                 window.location.href = "index.html";
@@ -244,7 +260,8 @@
 
         async function loadConfigAndExpenses() {
             try {
-                const docRef = doc(db, "config", "impostazioni");
+                // Carica la configurazione dell'utente loggato
+                const docRef = doc(db, "config", currentUser.uid);
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
                     const data = docSnap.data();
@@ -255,6 +272,7 @@
                 console.log("Errore caricamento configurazione:", e);
             }
 
+            // Carica tutte le spese dal database
             const q = collection(db, "spese");
             const querySnapshot = await getDocs(q);
             expenses = [];
@@ -264,9 +282,11 @@
                     id: docSnap.id, 
                     amount: parseFloat((data.importo || data.amount || 0).toString().replace(',', '.')) || 0,
                     date: data.data || data.date,
-                    category: data.categoria || data.category 
+                    category: data.categoria || data.category,
+                    userId: data.userId || ""
                 });
             });
+
             populateYearsDropdown();
             applyFilter();
         }
@@ -316,6 +336,7 @@
         document.getElementById('select-week').addEventListener('input', applyFilter);
         document.getElementById('select-year').addEventListener('change', applyFilter);
         document.getElementById('search-input').addEventListener('input', applyFilter);
+        document.getElementById('view-mode-select').addEventListener('change', applyFilter);
 
         function formatDateToEu(dateStr) {
             if (!dateStr) return "";
@@ -327,9 +348,21 @@
         }
 
         function applyFilter() {
+            const viewMode = document.getElementById('view-mode-select').value;
             const type = document.getElementById('filter-type').value;
             const searchText = document.getElementById('search-input').value.toLowerCase().trim();
             let from, to;
+
+            // Filtra le spese in base alla modalità scelta (Miei dati, di Eleonora, o entrambi)
+            const visibleExpenses = expenses.filter(e => {
+                if (viewMode === 'mine') {
+                    return e.userId === currentUser.uid;
+                } else if (viewMode === 'spouse') {
+                    return e.userId !== currentUser.uid && e.userId !== ""; // L'altro utente
+                } else {
+                    return true; // Entrambi
+                }
+            });
 
             if (type === 'day') {
                 const dayVal = document.getElementById('select-day').value;
@@ -383,7 +416,7 @@
                 to.setHours(23,59,59,999);
             }
 
-            const filtered = expenses.filter(e => {
+            const filtered = visibleExpenses.filter(e => {
                 const d = new Date(e.date);
                 const matchDate = (d >= from && d <= to);
                 
@@ -398,48 +431,44 @@
                 return true;
             });
 
-            renderResults(filtered, from, to, type);
+            renderResults(filtered, from, to, type, viewMode);
         }
 
-        function renderResults(list, from, to, type) {
+        function renderResults(list, from, to, type, viewMode) {
             const totalSpent = list.reduce((sum, e) => sum + e.amount, 0);
             document.getElementById('filter-total-val').innerText = totalSpent.toFixed(2);
 
             let totalIncome = 0;
+            let singleMonthBase = monthlySalaries2026[`${curYear}-${curMonth}`] || 1415.57; 
+            if (viewMode === 'both') {
+                singleMonthBase *= 2; // Raddoppia se si guardano entrambi i conti
+            }
 
             if (type === 'month') {
-                const monthVal = document.getElementById('select-month').value; // Es. "2026-11"
-                totalIncome = monthlySalaries2026[monthVal] !== undefined ? monthlySalaries2026[monthVal] : 0;
+                const monthVal = document.getElementById('select-month').value; 
+                let baseInc = monthlySalaries2026[monthVal] !== undefined ? monthlySalaries2026[monthVal] : 0;
+                totalIncome = viewMode === 'both' ? baseInc * 2 : baseInc;
             } 
             else if (type === 'day') {
-                const dayVal = document.getElementById('select-day').value; // Es. "2026-11-08"
+                const dayVal = document.getElementById('select-day').value; 
                 const monthKey = dayVal ? dayVal.substring(0, 7) : `${curYear}-${curMonth}`;
-                totalIncome = monthlySalaries2026[monthKey] !== undefined ? monthlySalaries2026[monthKey] : 0;
+                let baseInc = monthlySalaries2026[monthKey] !== undefined ? monthlySalaries2026[monthKey] : 0;
+                totalIncome = viewMode === 'both' ? baseInc * 2 : baseInc;
             } 
             else if (type === 'week') {
-                // Per la settimana prendiamo il mese basato sulla data di inizio della settimana selezionata
-                const weekVal = document.getElementById('select-week').value;
-                if (from) {
-                    const y = from.getFullYear();
-                    const m = String(from.getMonth() + 1).padStart(2, '0');
-                    const monthKey = `${y}-${m}`;
-                    totalIncome = monthlySalaries2026[monthKey] !== undefined ? monthlySalaries2026[monthKey] : 0;
-                } else {
-                    totalIncome = monthlySalaries2026[`${curYear}-${curMonth}`] || 0;
-                }
+                let baseInc = singleMonthBase;
+                totalIncome = viewMode === 'both' ? baseInc * 2 : baseInc;
             } 
             else if (type === 'year') {
-                // Somma esatta di tutti gli stipendi dell'anno (15994.57)
-                totalIncome = Object.values(monthlySalaries2026).reduce((a, b) => a + b, 0);
+                let yearSum = Object.values(monthlySalaries2026).reduce((a, b) => a + b, 0);
+                totalIncome = viewMode === 'both' ? yearSum * 2 : yearSum;
             } 
             else if (type === 'custom' && from && to) {
-                // Per il personalizzato sommiamo i mesi interi o proporzioniamo in base ai giorni dei mesi compresi nell'intervallo
                 let currentTimestamp = new Date(from);
                 currentTimestamp.setHours(0,0,0,0);
                 const endTimestamp = new Date(to);
                 endTimestamp.setHours(23,59,59,999);
 
-                // Sommiamo lo stipendio dei mesi che cadono interamente o parzialmente nell'intervallo
                 let calculatedCustomIncome = 0;
                 while (currentTimestamp <= endTimestamp) {
                     const y = currentTimestamp.getFullYear();
@@ -447,16 +476,15 @@
                     const monthKey = `${y}-${m}`;
                     const monthSalary = monthlySalaries2026[monthKey] || 0;
                     
-                    // Giorni nel mese corrente
                     const daysInMonth = new Date(y, currentTimestamp.getMonth() + 1, 0).getDate();
                     const dailyRate = monthSalary / daysInMonth;
 
                     calculatedCustomIncome += dailyRate;
                     currentTimestamp.setDate(currentTimestamp.getDate() + 1);
                 }
-                totalIncome = calculatedCustomIncome;
+                totalIncome = viewMode === 'both' ? calculatedCustomIncome * 2 : calculatedCustomIncome;
             } else {
-                totalIncome = monthlySalaries2026[`${curYear}-${curMonth}`] || 0;
+                totalIncome = singleMonthBase;
             }
 
             document.getElementById('filter-income-val').innerText = totalIncome.toFixed(2);
