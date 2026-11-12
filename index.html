@@ -33,13 +33,13 @@
         </header>
 
         <div class="container">
-            <!-- Box Compatto: Solo Data Prossimo Stipendio + Pulsante per aprire il Pop-up -->
-            <div class="card" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-                <div style="flex: 1; margin-bottom: 0;">
-                    <label style="font-size: 11px; color: #666; font-weight: 600; margin-bottom: 4px; display: block;">Data Prossimo Stipendio</label>
-                    <input type="date" id="salary-date" style="padding: 8px; font-size: 13px;">
+            <!-- Box Stipendio allineato nello stile con i campi spesa -->
+            <div class="card">
+                <div class="form-group form-group-horizontal" style="margin-bottom: 0;">
+                    <label style="flex: 0 0 130px; font-size: 12px; color: #3b5998; font-weight: bold;">Prossimo Stipendio</label>
+                    <input type="date" id="salary-date" style="flex: 1;">
+                    <button type="button" id="open-salary-modal" class="btn-orange-add" style="width: 42px; height: 42px; font-size: 18px;" title="Modifica Stipendio ed Extra">⚙️</button>
                 </div>
-                <button type="button" id="open-salary-modal" class="btn" style="width: auto; padding: 10px 14px; margin-top: 18px; font-size: 13px; background-color: #f9a500ff;" title="Modifica Stipendio ed Extra">⚙️ Stipendio</button>
             </div>
 
             <!-- Dashboard Calcoli -->
@@ -86,8 +86,7 @@
                     <div class="form-group form-group-horizontal">
                         <label>Categoria</label>
                         <div class="category-select-wrapper">
-                            <!-- Sostituito input text con un vero tag select a tendina -->
-                            <select id="expense-category" required style="width: 100%; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; background-color: #fff;">
+                            <select id="expense-category" required style="width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; background-color: #fff;">
                                 <option value="" disabled selected>Seleziona categoria...</option>
                             </select>
                             <button type="button" id="quick-add-category-btn" class="btn-orange-add" title="Aggiungi Categoria">+</button>
