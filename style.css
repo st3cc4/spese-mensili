@@ -1,4 +1,4 @@
-* {
+- {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -196,7 +196,7 @@ input, select {
     font-size: 11px;
     color: #6c757d;
     text-transform: uppercase;
-    font-weight: 600;
+    font-weight: bold; /* Reso in grassetto mantenendo la dimensione originale a 11px */
     margin-bottom: 0;
 }
 
