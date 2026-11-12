@@ -1,7 +1,7 @@
 import { 
     auth, db, signInWithEmailAndPassword, createUserWithEmailAndPassword, 
     onAuthStateChanged, signOut, collection, addDoc, getDocs, doc, 
-    updateDoc, deleteDoc, setDoc, getDoc 
+    updateDoc, deleteDoc, setDoc, getDoc, query, where 
 } from "./firebase-config.js";
 
 let currentUser = null;
@@ -18,7 +18,7 @@ const todayStr = `${year}-${month}-${day}`;
 
 document.getElementById('expense-date').value = todayStr;
 
-// Controllo Stato Autenticazione Fluido
+// Controllo Stato Autenticazione Fluido con isolamento dati per utente (UID)
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
@@ -69,17 +69,17 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 // Logout
 document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
-// Caricamento Dati
+// Caricamento Dati specifici dell'utente loggato
 async function loadUserData() {
     await loadSalary();
     await loadCategories();
     await loadExpenses();
 }
 
-// Gestione Stipendio e salvataggio automatico data
+// Gestione Stipendio basata sul documento personale dell'utente (UID)
 async function loadSalary() {
     try {
-        const docRef = doc(db, "config", "impostazioni");
+        const docRef = doc(db, "config", currentUser.uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
             const data = docSnap.data();
@@ -91,18 +91,24 @@ async function loadSalary() {
             document.getElementById('salary-date').value = salaryData.nextDate;
             document.getElementById('modal-salary-base').value = data.stipendio || "";
             document.getElementById('modal-salary-extra').value = salaryData.extraExpression;
+        } else {
+            // Valori di default se il documento non esiste ancora per questo utente
+            salaryData = { nextDate: "", base: 0, extra: 0, extraExpression: "" };
+            document.getElementById('salary-date').value = "";
+            document.getElementById('modal-salary-base').value = "";
+            document.getElementById('modal-salary-extra').value = "";
         }
     } catch (e) {
         console.log("Errore caricamento stipendio:", e);
     }
 }
 
-// Salvataggio automatico quando cambi la data direttamente in home
+// Salvataggio automatico data prossimo stipendio associata all'utente
 document.getElementById('salary-date').addEventListener('change', async () => {
     const nextDate = document.getElementById('salary-date').value;
     salaryData.nextDate = nextDate;
 
-    const docRef = doc(db, "config", "impostazioni");
+    const docRef = doc(db, "config", currentUser.uid);
     const docSnap = await getDoc(docRef);
     let currentData = docSnap.exists() ? docSnap.data() : {};
     
@@ -120,7 +126,7 @@ document.getElementById('close-salary-modal').addEventListener('click', () => {
     salaryModal.classList.add('hidden');
 });
 
-// Salvataggio dati da dentro il pop-up
+// Salvataggio dati stipendio nel documento personale dell'utente
 document.getElementById('save-salary-modal-btn').addEventListener('click', async () => {
     const baseRaw = document.getElementById('modal-salary-base').value.trim().replace(',', '.');
     const base = parseFloat(baseRaw) || 0;
@@ -140,7 +146,7 @@ document.getElementById('save-salary-modal-btn').addEventListener('click', async
     salaryData.extra = evaluatedExtra;
     salaryData.extraExpression = extraInput;
 
-    const docRef = doc(db, "config", "impostazioni");
+    const docRef = doc(db, "config", currentUser.uid);
     const docSnap = await getDoc(docRef);
     let currentData = docSnap.exists() ? docSnap.data() : {};
     
@@ -154,14 +160,12 @@ document.getElementById('save-salary-modal-btn').addEventListener('click', async
     calculateDashboard();
 });
 
-// Funzione Capitalize: maiuscola solo alla prima lettera, il resto invariato
 function capitalizeFirstOnly(str) {
     if (!str) return "";
     str = str.trim();
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-// Funzione di utilità per convertire data da ISO (YYYY-MM-DD) a Europea (DD/MM/YYYY)
 function formatDateToEu(dateStr) {
     if (!dateStr) return "";
     const parts = dateStr.split('-');
@@ -171,10 +175,10 @@ function formatDateToEu(dateStr) {
     return dateStr;
 }
 
-// Gestione Categorie con Select a tendina dinamica ordinata alfabeticamente
+// Gestione Categorie personali dell'utente (salvate nel suo documento config)
 async function loadCategories() {
     try {
-        const docRef = doc(db, "config", "impostazioni");
+        const docRef = doc(db, "config", currentUser.uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists() && docSnap.data().categorie) {
             let rawCategories = docSnap.data().categorie;
@@ -191,7 +195,6 @@ async function loadCategories() {
 
 function renderCategories() {
     const select = document.getElementById('expense-category');
-    // Mantiene l'opzione di default e pulisce le vecchie
     select.innerHTML = '<option value="" disabled selected>Seleziona categoria...</option>';
 
     categories.forEach((catName) => {
@@ -199,7 +202,6 @@ function renderCategories() {
     });
 }
 
-// Aggiunta o Eliminazione Rapida Categoria tramite tasto '+'
 document.getElementById('quick-add-category-btn').addEventListener('click', async () => {
     const inputName = prompt("Inserisci il nome della nuova categoria (o scrivi una categoria esistente preceduta da '-' es. '-Sigarette' per eliminarla):");
     if (!inputName || !inputName.trim()) return;
@@ -238,17 +240,17 @@ document.getElementById('quick-add-category-btn').addEventListener('click', asyn
 });
 
 async function saveCategoriesToFirebase() {
-    const docRef = doc(db, "config", "impostazioni");
+    const docRef = doc(db, "config", currentUser.uid);
     const docSnap = await getDoc(docRef);
     let currentData = docSnap.exists() ? docSnap.data() : {};
     currentData.categorie = categories;
     await setDoc(docRef, currentData);
 }
 
-// Gestione Spese
+// Caricamento Spese filtrate esclusivamente per l'utente corrente tramite userId
 async function loadExpenses() {
     try {
-        const q = collection(db, "spese");
+        const q = query(collection(db, "spese"), where("userId", "==", currentUser.uid));
         const querySnapshot = await getDocs(q);
         expenses = [];
         querySnapshot.forEach((docSnap) => {
@@ -296,6 +298,7 @@ function renderExpenses() {
     });
 }
 
+// Salvataggio spesa associata all'userId dell'utente loggato
 document.getElementById('expense-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('edit-expense-id').value;
@@ -309,7 +312,13 @@ document.getElementById('expense-form').addEventListener('submit', async (e) => 
         return;
     }
 
-    const data = { importo: amount, data: date, categoria: category, timestamp: new Date() };
+    const data = { 
+        importo: amount, 
+        data: date, 
+        categoria: category, 
+        userId: currentUser.uid, 
+        timestamp: new Date() 
+    };
 
     if (id) {
         await updateDoc(doc(db, "spese", id), data);
@@ -352,9 +361,8 @@ window.deleteExpense = async (id) => {
     }
 };
 
-// Calcoli Dashboard corretti e reattivi
+// Calcoli Dashboard
 function calculateDashboard() {
-    // 1. Speso oggi
     const spentToday = expenses
         .filter(e => e.date === todayStr)
         .reduce((sum, e) => sum + e.amount, 0);
@@ -382,7 +390,6 @@ function calculateDashboard() {
     const lastSalaryDate = new Date(nextSalary);
     lastSalaryDate.setMonth(lastSalaryDate.getMonth() - 1);
 
-    // 2. Totale spese di tutto il periodo corrente
     const currentPeriodExpenses = expenses.filter(e => {
         if (!e.date) return false;
         const p = e.date.split('-');
@@ -391,12 +398,10 @@ function calculateDashboard() {
         return expDate >= lastSalaryDate && expDate <= todayDateObj;
     }).reduce((sum, e) => sum + e.amount, 0);
 
-    // 3. Calcolo residuo totale
     const totalIncome = (salaryData.base || 0) + (salaryData.extra || 0);
     const residue = totalIncome - currentPeriodExpenses;
     document.getElementById('salary-residue').innerText = `€ ${residue.toFixed(2)}`;
 
-    // 4. Budget disponibile al giorno
     const daysRemaining = diffDays > 0 ? diffDays : 1;
     const dailyBudget = residue > 0 ? (residue / daysRemaining) : 0;
     document.getElementById('daily-budget').innerText = `€ ${dailyBudget.toFixed(2)}`;
