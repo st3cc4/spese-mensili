@@ -171,7 +171,7 @@ function formatDateToEu(dateStr) {
     return dateStr;
 }
 
-// Gestione Categorie con Datalist dinamica ordinata alfabeticamente
+// Gestione Categorie con Select a tendina dinamica ordinata alfabeticamente
 async function loadCategories() {
     try {
         const docRef = doc(db, "config", "impostazioni");
@@ -190,15 +190,16 @@ async function loadCategories() {
 }
 
 function renderCategories() {
-    const datalist = document.getElementById('categories-list');
-    datalist.innerHTML = '';
+    const select = document.getElementById('expense-category');
+    // Mantiene l'opzione di default e pulisce le vecchie
+    select.innerHTML = '<option value="" disabled selected>Seleziona categoria...</option>';
 
     categories.forEach((catName) => {
-        datalist.innerHTML += `<option value="${catName}">`;
+        select.innerHTML += `<option value="${catName}">${catName}</option>`;
     });
 }
 
-// Aggiunta o Eliminazione Rapida Categoria
+// Aggiunta o Eliminazione Rapida Categoria tramite tasto '+'
 document.getElementById('quick-add-category-btn').addEventListener('click', async () => {
     const inputName = prompt("Inserisci il nome della nuova categoria (o scrivi una categoria esistente preceduta da '-' es. '-Sigarette' per eliminarla):");
     if (!inputName || !inputName.trim()) return;
@@ -301,19 +302,11 @@ document.getElementById('expense-form').addEventListener('submit', async (e) => 
     const amountInput = document.getElementById('expense-amount').value.toString().replace(',', '.');
     const amount = parseFloat(amountInput) || 0;
     const date = document.getElementById('expense-date').value;
-    const rawCat = document.getElementById('expense-category').value;
-    const category = capitalizeFirstOnly(rawCat);
+    const category = document.getElementById('expense-category').value;
 
     if (!category) {
-        alert("Inserisci una categoria valida.");
+        alert("Seleziona una categoria valida.");
         return;
-    }
-
-    if (!categories.includes(category)) {
-        categories.push(category);
-        categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
-        await saveCategoriesToFirebase();
-        renderCategories();
     }
 
     const data = { importo: amount, data: date, categoria: category, timestamp: new Date() };
@@ -389,7 +382,7 @@ function calculateDashboard() {
     const lastSalaryDate = new Date(nextSalary);
     lastSalaryDate.setMonth(lastSalaryDate.getMonth() - 1);
 
-    // 2. Totale spese di tutto il periodo corrente (dallo stipendio precedente a oggi)
+    // 2. Totale spese di tutto il periodo corrente
     const currentPeriodExpenses = expenses.filter(e => {
         if (!e.date) return false;
         const p = e.date.split('-');
