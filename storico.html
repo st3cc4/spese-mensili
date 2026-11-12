@@ -58,7 +58,7 @@
             bottom: 0;
             left: 0;
             right: 0;
-            height: 75px !important; /* Ingrandita */
+            height: 75px !important;
             background: white;
             display: flex;
             border-top: 1px solid #ddd;
@@ -73,15 +73,15 @@
             justify-content: center;
             text-decoration: none;
             color: #666;
-            font-size: 13px !important; /* Testo più grande */
+            font-size: 13px !important;
             font-weight: 600;
         }
         .nav-item span {
-            font-size: 24px !important; /* Icone più grandi */
+            font-size: 24px !important;
             margin-bottom: 2px;
         }
         body {
-            padding-bottom: 90px !important; /* Spazio per la barra ingrandita */
+            padding-bottom: 90px !important;
         }
     </style>
 </head>
@@ -105,14 +105,14 @@
         <div class="card">
             <h3>Seleziona Periodo</h3>
             
-            <!-- Selezione Account tramite Checkbox con nomi dinamici -->
+            <!-- Selezione Account tramite Checkbox (senza 'checked' statico) -->
             <div style="display: flex; gap: 15px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.08); align-items: center; flex-wrap: wrap;">
                 <label style="font-size: 12px; color: #3b5998; font-weight: 600; margin-bottom: 0;">Account:</label>
                 <label style="font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
-                    <input type="checkbox" id="chk-user1" checked style="width: auto; transform: scale(1.1);"> <span id="label-user1">Paolo</span>
+                    <input type="checkbox" id="chk-user1" style="width: auto; transform: scale(1.1);"> <span id="label-user1">Paolo</span>
                 </label>
                 <label style="font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
-                    <input type="checkbox" id="chk-user2" checked style="width: auto; transform: scale(1.1);"> <span id="label-user2">Elena</span>
+                    <input type="checkbox" id="chk-user2" style="width: auto; transform: scale(1.1);"> <span id="label-user2">Elena</span>
                 </label>
             </div>
 
@@ -282,17 +282,17 @@
             if (user) {
                 currentUser = user;
                 
-                // Imposta i nomi dinamici dei checkbox in base all'utente loggato
+                // Riconosce chi è loggato in base all'email
                 const email = (user.email || "").toLowerCase();
-                const isElena = email.includes("ele") || email.includes("stpa79") === false; // Adatta se necessario
-                
-                // Identifichiamo i due UID univoci in base a chi entra
-                // Supponiamo che tu (Paolo) e Elena abbiate gli UID registrati
-                // Assegniamo i nomi corretti ai label dei checkbox
                 const isUserLoggedElena = email.includes("ele");
                 
+                // Imposta i nomi corretti sui checkbox in base all'utente
                 document.getElementById('label-user1').innerText = isUserLoggedElena ? "Elena" : "Paolo";
                 document.getElementById('label-user2').innerText = isUserLoggedElena ? "Paolo" : "Elena";
+
+                // Seleziona di default SOLO il primo checkbox (l'utente loggato)
+                document.getElementById('chk-user1').checked = true;
+                document.getElementById('chk-user2').checked = false;
 
                 await loadConfigAndExpenses();
             } else {
@@ -395,14 +395,13 @@
             const searchText = document.getElementById('search-input').value.toLowerCase().trim();
             let from, to;
 
-            // Riconosciamo chi è l'utente 1 (il proprietario dell'account corrente) e l'utente 2 (l'altro)
             const visibleExpenses = expenses.filter(e => {
                 const isUser1 = (e.userId === currentUser.uid);
                 const isUser2 = (e.userId !== currentUser.uid && e.userId !== "");
 
-                if (chkUser1 && chkUser2) return true; // Entrambi
-                if (chkUser1 && !chkUser2) return isUser1; // Solo utente 1
-                if (!chkUser1 && chkUser2) return isUser2; // Solo utente 2
+                if (chkUser1 && chkUser2) return true; 
+                if (chkUser1 && !chkUser2) return isUser1; 
+                if (!chkUser1 && chkUser2) return isUser2; 
                 return false;
             });
 
@@ -520,7 +519,7 @@
                 while (currentTimestamp <= endTimestamp) {
                     const y = currentTimestamp.getFullYear();
                     const m = String(currentTimestamp.getMonth() + 1).padStart(2, '0');
-                    const monthKey = `${y}-${m}`;
+                    monthKey = `${y}-${m}`;
                     const monthSalary = monthlySalaries2026[monthKey] || 0;
                     
                     const daysInMonth = new Date(y, currentTimestamp.getMonth() + 1, 0).getDate();
@@ -575,7 +574,7 @@
                 return;
             }
 
-            list.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
+            list.sort((a, b) => new Date(b.date) - new Date(b.date)).forEach(exp => {
                 const dateEu = formatDateToEu(exp.date);
                 listContainer.innerHTML += `
                     <div class="expense-item">
