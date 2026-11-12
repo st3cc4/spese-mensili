@@ -189,12 +189,10 @@
         let currentUser = null;
         let expenses = [];
         let salaryConfig = { base: 0, extra: 0 };
-        let spouseSalaryConfig = { base: 0, extra: 0 };
         let rangePickerInstance = null;
         let selectedCustomFrom = null;
         let selectedCustomTo = null;
 
-        // Tabella stipendi ufficiali 2026 (puoi personalizzarla)
         const monthlySalaries2026 = {
             "2026-01": 1733.19,
             "2026-02": 1895.23,
@@ -260,7 +258,6 @@
 
         async function loadConfigAndExpenses() {
             try {
-                // Carica la configurazione dell'utente loggato
                 const docRef = doc(db, "config", currentUser.uid);
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
@@ -272,7 +269,6 @@
                 console.log("Errore caricamento configurazione:", e);
             }
 
-            // Carica tutte le spese dal database
             const q = collection(db, "spese");
             const querySnapshot = await getDocs(q);
             expenses = [];
@@ -353,14 +349,13 @@
             const searchText = document.getElementById('search-input').value.toLowerCase().trim();
             let from, to;
 
-            // Filtra le spese in base alla modalità scelta (Miei dati, di Eleonora, o entrambi)
             const visibleExpenses = expenses.filter(e => {
                 if (viewMode === 'mine') {
                     return e.userId === currentUser.uid;
                 } else if (viewMode === 'spouse') {
-                    return e.userId !== currentUser.uid && e.userId !== ""; // L'altro utente
+                    return e.userId !== currentUser.uid && e.userId !== "";
                 } else {
-                    return true; // Entrambi
+                    return true;
                 }
             });
 
@@ -439,24 +434,26 @@
             document.getElementById('filter-total-val').innerText = totalSpent.toFixed(2);
 
             let totalIncome = 0;
-            let singleMonthBase = monthlySalaries2026[`${curYear}-${curMonth}`] || 1415.57; 
-            if (viewMode === 'both') {
-                singleMonthBase *= 2; // Raddoppia se si guardano entrambi i conti
-            }
 
             if (type === 'month') {
-                const monthVal = document.getElementById('select-month').value; 
+                const monthVal = document.getElementById('select-month').value; // Es. "2026-11"
                 let baseInc = monthlySalaries2026[monthVal] !== undefined ? monthlySalaries2026[monthVal] : 0;
                 totalIncome = viewMode === 'both' ? baseInc * 2 : baseInc;
             } 
             else if (type === 'day') {
-                const dayVal = document.getElementById('select-day').value; 
+                const dayVal = document.getElementById('select-day').value; // Es. "2026-11-12"
                 const monthKey = dayVal ? dayVal.substring(0, 7) : `${curYear}-${curMonth}`;
                 let baseInc = monthlySalaries2026[monthKey] !== undefined ? monthlySalaries2026[monthKey] : 0;
                 totalIncome = viewMode === 'both' ? baseInc * 2 : baseInc;
             } 
             else if (type === 'week') {
-                let baseInc = singleMonthBase;
+                let monthKey = `${curYear}-${curMonth}`;
+                if (from) {
+                    const y = from.getFullYear();
+                    const m = String(from.getMonth() + 1).padStart(2, '0');
+                    monthKey = `${y}-${m}`;
+                }
+                let baseInc = monthlySalaries2026[monthKey] !== undefined ? monthlySalaries2026[monthKey] : 0;
                 totalIncome = viewMode === 'both' ? baseInc * 2 : baseInc;
             } 
             else if (type === 'year') {
@@ -484,7 +481,8 @@
                 }
                 totalIncome = viewMode === 'both' ? calculatedCustomIncome * 2 : calculatedCustomIncome;
             } else {
-                totalIncome = singleMonthBase;
+                let baseInc = monthlySalaries2026[`${curYear}-${curMonth}`] || 0;
+                totalIncome = viewMode === 'both' ? baseInc * 2 : baseInc;
             }
 
             document.getElementById('filter-income-val').innerText = totalIncome.toFixed(2);
@@ -527,7 +525,7 @@
                 return;
             }
 
-            list.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
+            list.sort((a, b) => new Date(b.date) - new Date(b.date)).forEach(exp => {
                 const dateEu = formatDateToEu(exp.date);
                 listContainer.innerHTML += `
                     <div class="expense-item">
