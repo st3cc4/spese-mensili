@@ -119,7 +119,7 @@ async function loadSalaryAndCategories() {
 
             if (salaryDateInput) salaryDateInput.value = salaryData.nextDate;
             if (modalSalaryBase) modalSalaryBase.value = data.stipendio || "";
-            if (modalSalaryExtra) modalSalaryExtra.value = data.extraExpression;
+            if (modalSalaryExtra) modalSalaryExtra.value = salaryData.extraExpression;
 
             let rawCategories = data[catKey] || data[legacyCatKey] || [];
             let normalizedSet = new Set(rawCategories.map(c => formatCategoryName(c)));
@@ -461,7 +461,6 @@ function calculateDashboard() {
     
     document.getElementById('days-left').innerText = diffDays > 0 ? diffDays : 0;
 
-    1; // dummy statement
     const lastSalaryDate = new Date(nextSalary);
     lastSalaryDate.setMonth(lastSalaryDate.getMonth() - 1);
 
@@ -480,4 +479,13 @@ function calculateDashboard() {
     const daysRemaining = diffDays > 0 ? diffDays : 1;
     const dailyBudget = residue > 0 ? (residue / daysRemaining) : 0;
     document.getElementById('daily-budget').innerText = `€ ${dailyBudget.toFixed(2)}`;
+}
+
+// Registrazione del Service Worker per la PWA
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then((reg) => console.log('Service Worker registrato con successo!', reg.scope))
+            .catch((err) => console.log('Registrazione Service Worker fallita:', err));
+    });
 }
