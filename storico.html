@@ -8,7 +8,6 @@
     <!-- Flatpickr CSS per calendario intervallo date unico -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
-        /* Stili specifici per l'allineamento orizzontale dei filtri e delle card metriche */
         .filter-group-horizontal {
             display: flex;
             align-items: center;
@@ -17,8 +16,18 @@
             margin-bottom: 10px;
         }
         
-        /* Uniformità delle etichette e dei titoli */
-        .card h3, .filter-group-horizontal label {
+        /* Titoli delle card più grandi e ben visibili (Cerchiati in rosso) */
+        .card h3 {
+            font-size: 16px !important;
+            color: #3b5998 !important;
+            font-weight: bold !important;
+            margin-bottom: 12px !important;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+            padding-bottom: 6px;
+        }
+
+        /* Etichette dei filtri e moduli standard */
+        .filter-group-horizontal label {
             font-size: 14px !important;
             color: #3b5998 !important;
             font-weight: bold !important;
@@ -29,7 +38,6 @@
             flex: 1;
         }
         
-        /* Card metriche con etichetta sopra e importo sotto */
         .metric-box-stack {
             flex: 1;
             background-color: #f8f9fa;
@@ -53,7 +61,6 @@
             gap: 3px;
         }
 
-        /* Barra di navigazione inferiore ingrandita */
         .nav-bar {
             position: fixed;
             bottom: 0;
@@ -85,7 +92,6 @@
             padding-bottom: 90px !important;
         }
 
-        /* Stile per il box dei suggerimenti autocomplete nel filtro testo */
         #search-dropdown {
             position: absolute;
             top: 100%;
@@ -120,7 +126,7 @@
     </header>
 
     <div class="container">
-        <!-- Campo di Ricerca Rapida Testuale con Autocomplete -->
+        <!-- Cerca Spesa -->
         <div class="card">
             <h3>Cerca spesa</h3>
             <div class="form-group filter-group-horizontal" style="margin-bottom: 0; position: relative;">
@@ -132,11 +138,10 @@
             </div>
         </div>
 
-        <!-- Filtri del Periodo con Checkbox Dinamici per Nome -->
+        <!-- Seleziona Periodo -->
         <div class="card">
             <h3>Seleziona periodo</h3>
             
-            <!-- Selezione Account tramite Checkbox -->
             <div style="display: flex; gap: 15px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.08); align-items: center; flex-wrap: wrap;">
                 <label style="font-size: 14px; color: #3b5998; font-weight: bold; margin-bottom: 0;">Account:</label>
                 <label style="font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
@@ -158,42 +163,36 @@
                 </select>
             </div>
 
-            <!-- Selezione Giorno Singolo (Visibile di default) -->
             <div id="selector-day-container" class="filter-group-horizontal">
                 <label>Giorno</label>
                 <input type="date" id="select-day">
             </div>
 
-            <!-- Selezione Mese (Nascosto di default) -->
             <div id="selector-month-container" class="filter-group-horizontal hidden">
                 <label>Mese</label>
                 <input type="month" id="select-month">
             </div>
 
-            <!-- Selezione Settimana -->
             <div id="selector-week-container" class="filter-group-horizontal hidden">
                 <label>Settimana</label>
                 <input type="week" id="select-week">
             </div>
 
-            <!-- Selezione Anno -->
             <div id="selector-year-container" class="filter-group-horizontal hidden">
                 <label>Anno</label>
                 <select id="select-year"></select>
             </div>
 
-            <!-- Selezione periodo personalizzato con calendario unico Inizio/Fine -->
             <div id="custom-date-container" class="filter-group-horizontal hidden">
                 <label>Intervallo</label>
                 <input type="text" id="date-range-picker" placeholder="Inizio -> Fine">
             </div>
         </div>
 
-        <!-- Risultati Totali & Bilancio Affiancato -->
+        <!-- Risultati Periodo & Bilancio -->
         <div class="card">
             <h3>Risultati periodo</h3>
             
-            <!-- Griglia Metriche: Totale Entrate (Cumulativo anno) e Totale Speso -->
             <div class="metric-grid" style="margin-bottom: 8px;">
                 <div class="metric-box-stack">
                     <span class="metric-title">Totale entrate</span>
@@ -211,8 +210,8 @@
                 </div>
             </div>
 
-            <!-- Bilancio Netto -->
-            <div class="metric-box" style="margin-bottom: 12px; background-color: #e9ecef;">
+            <!-- Bilancio (sottrae le spese totali annuali dalle entrate totali annuali) -->
+            <div class="metric-box" style="margin-bottom: 14px; background-color: #e9ecef;">
                 <span>Bilancio</span>
                 <strong id="filter-balance" style="font-size: 20px;">€ 0.00</strong>
             </div>
@@ -221,17 +220,15 @@
             <div id="category-totals-list" style="margin-top: 8px;"></div>
         </div>
 
-        <!-- Elenco Spese Filtrate con Ordinamento Corretto per Data -->
+        <!-- Dettaglio Spese -->
         <div class="card">
             <h3>Dettaglio spese</h3>
             <div id="filtered-expenses-list"></div>
         </div>
 
-        <!-- Firma d'autore in basso a destra -->
         <div class="watermark-signature">Created by STECCA</div>
     </div>
 
-    <!-- Navigation Bar Ingrandita -->
     <nav class="nav-bar">
         <a href="index.html" class="nav-item">
             <span>🏠</span> Dashboard
@@ -241,7 +238,6 @@
         </a>
     </nav>
 
-    <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/it.js"></script>
 
@@ -544,10 +540,10 @@
                 return true;
             });
 
-            renderResults(filtered, from, to, type, chkUser1, chkUser2);
+            renderResults(filtered, from, to, type, chkUser1, chkUser2, visibleExpenses);
         }
 
-        function renderResults(list, from, to, type, chkUser1, chkUser2) {
+        function renderResults(list, from, to, type, chkUser1, chkUser2, visibleExpenses) {
             const totalSpent = list.reduce((sum, e) => sum + e.amount, 0);
             document.getElementById('filter-total-val').innerText = totalSpent.toFixed(2);
 
@@ -570,7 +566,10 @@
             let totalIncome = totalIncomeYearToDate * multiplier;
             document.getElementById('filter-income-val').innerText = totalIncome.toFixed(2);
 
-            const netBalance = totalIncome - totalSpent;
+            // CALCOLO BILANCIO ANNUALE: Entrate totali anno - Spese totali anno (degli account selezionati)
+            const totalSpentYearAll = visibleExpenses.reduce((sum, e) => sum + e.amount, 0);
+            const netBalance = totalIncome - totalSpentYearAll;
+
             const balanceElement = document.getElementById('filter-balance');
             balanceElement.innerText = `€ ${netBalance.toFixed(2)}`;
             balanceElement.style.color = netBalance >= 0 ? '#28a745' : '#dc3545';
@@ -608,7 +607,6 @@
                 return;
             }
 
-            // Ordinamento corretto per data (dalla più recente alla meno recente)
             list.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
                 const dateEu = formatDateToEu(exp.date);
                 listContainer.innerHTML += `
