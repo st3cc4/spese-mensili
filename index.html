@@ -42,7 +42,7 @@
 </head>
 <body>
 
-    <!-- Schermata di Accesso Omogenea, Pulita e Allineata -->
+    <!-- Schermata di Accesso -->
     <div id="auth-screen" class="hidden" style="max-width: 420px; margin: 60px auto; padding: 0 15px;">
         <div class="card" style="padding: 25px;">
             <h3 style="font-size: 18px; color: #3b5998; margin-bottom: 18px; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 10px; font-weight: bold;">Accesso</h3>
@@ -68,12 +68,12 @@
         </header>
 
         <div class="container">
-            <!-- Box Stipendio allineato nello stile con i campi spesa -->
+            <!-- Box Data Stipendio uniformato -->
             <div class="card">
-                <div class="form-group form-group-horizontal" style="margin-bottom: 0;">
-                    <label style="flex: 0 0 130px; font-size: 12px; color: #3b5998; font-weight: bold;">Prossimo Stipendio</label>
-                    <input type="date" id="salary-date" style="flex: 1;">
-                    <button type="button" id="open-salary-modal" class="btn-orange-add" style="width: 42px; height: 42px; font-size: 18px;" title="Modifica Stipendio ed Extra">⚙️</button>
+                <div class="form-group form-group-horizontal" style="margin-bottom: 0; align-items: center;">
+                    <label style="flex: 0 0 110px; font-size: 12px; color: #3b5998; font-weight: 600; margin-bottom: 0;">Data Stipendio</label>
+                    <input type="date" id="salary-date" style="flex: 1; height: 42px; padding: 8px 10px; box-sizing: border-box;">
+                    <button type="button" id="open-salary-modal" class="btn-orange-add" style="width: 42px; height: 42px; font-size: 18px; display: flex; align-items: center; justify-content: center;" title="Modifica Stipendio ed Extra">⚙️</button>
                 </div>
             </div>
 
@@ -102,7 +102,7 @@
                 </div>
             </div>
 
-            <!-- Modulo Inserimento / Modifica Spesa -->
+            <!-- Modulo Inserimento / Modifica Spesa con Categoria Ricercabile -->
             <div class="card card-highlight">
                 <h3 id="form-expense-title">Aggiungi Nuova Spesa</h3>
                 <form id="expense-form">
@@ -120,11 +120,10 @@
 
                     <div class="form-group form-group-horizontal">
                         <label>Categoria</label>
-                        <div class="category-select-wrapper">
-                            <select id="expense-category" required style="width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; background-color: #fff;">
-                                <option value="" disabled selected>Seleziona categoria...</option>
-                            </select>
-                            <button type="button" id="quick-add-category-btn" class="btn-orange-add" title="Aggiungi Categoria">+</button>
+                        <div class="category-select-wrapper" style="display: flex; gap: 8px; width: 100%;">
+                            <input type="text" id="expense-category" list="categories-list" required placeholder="Scrivi o seleziona..." style="flex: 1; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; background-color: #fff; box-sizing: border-box;">
+                            <datalist id="categories-list"></datalist>
+                            <button type="button" id="quick-add-category-btn" class="btn-orange-add" title="Gestisci Categorie" style="width: 42px; height: 42px; flex-shrink: 0;">+</button>
                         </div>
                     </div>
 
