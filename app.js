@@ -9,7 +9,6 @@ let categories = [];
 let expenses = [];
 let salaryData = { nextDate: "", base: 0, extra: 0, extraExpression: "" };
 
-// Data di Oggi locale in formato YYYY-MM-DD
 const todayLocal = new Date();
 const year = todayLocal.getFullYear();
 const month = String(todayLocal.getMonth() + 1).padStart(2, '0');
@@ -19,13 +18,16 @@ const todayStr = `${year}-${month}-${day}`;
 const expenseDateEl = document.getElementById('expense-date');
 if (expenseDateEl) expenseDateEl.value = todayStr;
 
-// Funzione per sapere se l'utente loggato è Elena
 function isUserElena(user) {
     if (!user || !user.email) return false;
     return user.email.toLowerCase().includes("ele");
 }
 
-// Controllo Stato Autenticazione Fluido con isolamento dati per utente (UID)
+// Restituisce il nome del campo categorie in base all'utente (categorie_paolo o categorie_elena)
+function getCategoryFieldKey() {
+    return isUserElena(currentUser) ? "categorie_elena" : "categorie_paolo";
+}
+
 onAuthStateChanged(auth, async (user) => {
     const authScreen = document.getElementById('auth-screen');
     const appScreen = document.getElementById('app-screen');
@@ -36,7 +38,6 @@ onAuthStateChanged(auth, async (user) => {
         if (appScreen) appScreen.classList.remove('hidden');
         await loadUserData();
         
-        // Controlla se arriviamo dallo Storico per modificare una spesa passata
         const editId = localStorage.getItem('edit_id');
         if (editId) {
             document.getElementById('edit-expense-id').value = editId;
@@ -59,7 +60,6 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// Login / Registrazione con gestione errori visibile in console
 const loginForm = document.getElementById('login-form');
 if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
@@ -70,30 +70,26 @@ if (loginForm) {
         try {
             await signInWithEmailAndPassword(auth, email, password);
         } catch (error) {
-            console.log("Tentativo di accesso fallito, provo la registrazione...", error.code);
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
             } catch (err) {
-                console.error("Errore critico autenticazione Firebase:", err);
+                console.error("Errore autenticazione:", err);
                 alert("Errore durante l'accesso: " + err.message);
             }
         }
     });
 }
 
-// Logout
 const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) {
     logoutBtn.addEventListener('click', () => signOut(auth));
 }
 
-// Caricamento Dati specifici dell'utente loggato
 async function loadUserData() {
     await loadSalaryAndCategories();
     await loadExpenses();
 }
 
-// Gestione Stipendio e Categorie dal documento personale
 async function loadSalaryAndCategories() {
     try {
         const userDocRef = doc(db, "config", currentUser.uid);
@@ -107,6 +103,9 @@ async function loadSalaryAndCategories() {
                 docSnap = await getDoc(userDocRef);
             }
         }
+
+        const catKey = getCategoryFieldKey();
+        const legacyCatKey = "categorie"; // campo vecchio generico
 
         if (docSnap.exists()) {
             const data = docSnap.data();
@@ -123,32 +122,20 @@ async function loadSalaryAndCategories() {
             if (modalSalaryBase) modalSalaryBase.value = data.stipendio || "";
             if (modalSalaryExtra) modalSalaryExtra.value = salaryData.extraExpression;
 
-            if (data.categorie) {
-                let rawCategories = data.categorie;
-                let normalizedSet = new Set(rawCategories.map(c => capitalizeFirstOnly(c)));
-                categories = Array.from(normalizedSet).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
-            } else {
-                categories = [];
-            }
+            // Legge dal campo specifico dell'utente, oppure dal campo legacy se non esiste
+            let rawCategories = data[catKey] || data[legacyCatKey] || [];
+            let normalizedSet = new Set(rawCategories.map(c => formatCategoryName(c)));
+            categories = Array.from(normalizedSet).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
         } else {
             salaryData = { nextDate: "", base: 0, extra: 0, extraExpression: "" };
-            const salaryDateInput = document.getElementById('salary-date');
-            const modalSalaryBase = document.getElementById('modal-salary-base');
-            const modalSalaryExtra = document.getElementById('modal-salary-extra');
-
-            if (salaryDateInput) salaryDateInput.value = "";
-            if (modalSalaryBase) modalSalaryBase.value = "";
-            if (modalSalaryExtra) modalSalaryExtra.value = "";
             categories = [];
         }
-        window.categories = categories; // Espone le categorie globalmente per la ricerca
-        renderCategories();
+        setupCategoryAutocomplete();
     } catch (e) {
         console.error("Errore caricamento impostazioni:", e);
     }
 }
 
-// Salvataggio automatico data prossimo stipendio
 const salaryDateEl = document.getElementById('salary-date');
 if (salaryDateEl) {
     salaryDateEl.addEventListener('change', async () => {
@@ -165,7 +152,6 @@ if (salaryDateEl) {
     });
 }
 
-// Gestione Apertura / Chiusura Modale Stipendio
 const salaryModal = document.getElementById('salary-modal');
 const openSalaryModalBtn = document.getElementById('open-salary-modal');
 const closeSalaryModalBtn = document.getElementById('close-salary-modal');
@@ -177,7 +163,6 @@ if (closeSalaryModalBtn && salaryModal) {
     closeSalaryModalBtn.addEventListener('click', () => salaryModal.classList.add('hidden'));
 }
 
-// Salvataggio dati stipendio nel modale
 const saveSalaryModalBtn = document.getElementById('save-salary-modal-btn');
 if (saveSalaryModalBtn) {
     saveSalaryModalBtn.addEventListener('click', async () => {
@@ -191,7 +176,7 @@ if (saveSalaryModalBtn) {
             const sanitized = normalizedExtra.replace(/[^0-9+\-.\s]/g, '');
             evaluatedExtra = sanitized ? eval(sanitized) : 0;
         } catch (err) {
-            alert("Formato extra non valido. Controlla i valori inseriti.");
+            alert("Formato extra non valido.");
             return;
         }
 
@@ -214,10 +199,17 @@ if (saveSalaryModalBtn) {
     });
 }
 
-function capitalizeFirstOnly(str) {
+// Regola di formattazione: prima parola con iniziale maiuscola, resto invariato
+function formatCategoryName(str) {
     if (!str) return "";
     str = str.trim();
-    return str.charAt(0).toUpperCase() + str.slice(1);
+    const words = str.split(/\s+/);
+    if (words.length === 0) return "";
+    
+    const firstWord = words[0];
+    const capitalizedFirst = firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
+    words[0] = capitalizedFirst;
+    return words.join(" ");
 }
 
 function formatDateToEu(dateStr) {
@@ -229,9 +221,46 @@ function formatDateToEu(dateStr) {
     return dateStr;
 }
 
-function renderCategories() {
-    // Funzione di supporto, aggiorna la variabile globale
-    window.categories = categories;
+// Gestione Autocompletamento Categorie in tempo reale
+function setupCategoryAutocomplete() {
+    const input = document.getElementById('expense-category');
+    const dropdown = document.getElementById('category-dropdown');
+    if (!input || !dropdown) return;
+
+    function renderDropdown(filteredList) {
+        dropdown.innerHTML = '';
+        if (filteredList.length === 0) {
+            dropdown.classList.add('hidden');
+            return;
+        }
+        filteredList.forEach(cat => {
+            const item = document.createElement('div');
+            item.className = 'category-suggestion-item';
+            item.innerText = cat;
+            item.onclick = () => {
+                input.value = cat;
+                dropdown.classList.add('hidden');
+            };
+            dropdown.appendChild(item);
+        });
+        dropdown.classList.remove('hidden');
+    }
+
+    input.onfocus = () => {
+        renderDropdown(categories);
+    };
+
+    input.oninput = (e) => {
+        const val = e.target.value.toLowerCase();
+        const filtered = categories.filter(c => c.toLowerCase().includes(val));
+        renderDropdown(filtered);
+    };
+
+    document.onclick = (e) => {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.add('hidden');
+        }
+    };
 }
 
 const quickAddCatBtn = document.getElementById('quick-add-category-btn');
@@ -243,13 +272,13 @@ if (quickAddCatBtn) {
         let trimmed = inputName.trim();
 
         if (trimmed.startsWith('-')) {
-            let targetCat = capitalizeFirstOnly(trimmed.substring(1));
+            let targetCat = formatCategoryName(trimmed.substring(1));
             const index = categories.indexOf(targetCat);
             if (index > -1) {
                 if (confirm(`Vuoi davvero eliminare la categoria "${targetCat}"?`)) {
                     categories.splice(index, 1);
                     await saveCategoriesToFirebase();
-                    renderCategories();
+                    setupCategoryAutocomplete();
                     document.getElementById('expense-category').value = '';
                     alert(`Categoria "${targetCat}" eliminata.`);
                 }
@@ -259,13 +288,13 @@ if (quickAddCatBtn) {
             return;
         }
 
-        const formattedName = capitalizeFirstOnly(trimmed);
+        const formattedName = formatCategoryName(trimmed);
 
         if (!categories.includes(formattedName)) {
             categories.push(formattedName);
             categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
             await saveCategoriesToFirebase();
-            renderCategories();
+            setupCategoryAutocomplete();
             document.getElementById('expense-category').value = formattedName;
         } else {
             alert("Questa categoria esiste già!");
@@ -278,9 +307,10 @@ async function saveCategoriesToFirebase() {
     const docRef = doc(db, "config", currentUser.uid);
     const docSnap = await getDoc(docRef);
     let currentData = docSnap.exists() ? docSnap.data() : {};
-    currentData.categorie = categories;
+    
+    const catKey = getCategoryFieldKey();
+    currentData[catKey] = categories;
     await setDoc(docRef, currentData);
-    window.categories = categories;
 }
 
 async function loadExpenses() {
@@ -352,17 +382,19 @@ if (expenseForm) {
         const amountInput = document.getElementById('expense-amount').value.toString().replace(',', '.');
         const amount = parseFloat(amountInput) || 0;
         const date = document.getElementById('expense-date').value;
-        const category = document.getElementById('expense-category').value.trim();
+        const rawCategory = document.getElementById('expense-category').value.trim();
 
-        if (!category) {
+        if (!rawCategory) {
             alert("Seleziona una categoria valida.");
             return;
         }
 
+        const formattedCategory = formatCategoryName(rawCategory);
+
         const data = { 
             importo: amount, 
             data: date, 
-            categoria: capitalizeFirstOnly(category), 
+            categoria: formattedCategory, 
             userId: currentUser.uid, 
             timestamp: new Date() 
         };
@@ -391,9 +423,9 @@ window.editExpense = (id) => {
     document.getElementById('cancel-edit-btn').classList.remove('hidden');
 };
 
-const cancelEditBtn = document.getElementById('cancel-edit-btn');
-if (cancelEditBtn) {
-    cancelEditBtn.addEventListener('click', resetForm);
+const cancelEditDbBtn = document.getElementById('cancel-edit-btn');
+if (cancelEditDbBtn) {
+    cancelEditDbBtn.addEventListener('click', resetForm);
 }
 
 function resetForm() {
@@ -442,7 +474,7 @@ function calculateDashboard() {
 
     const currentPeriodExpenses = expenses.filter(e => {
         if (!e.date) return false;
-        const p = e.date.split('-');
+        const p = e.date.text ? e.date.text.split('-') : e.date.split('-');
         const expDate = new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
         expDate.setHours(0,0,0,0);
         return expDate >= lastSalaryDate && expDate <= todayDateObj;
