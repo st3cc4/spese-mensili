@@ -23,7 +23,6 @@ function isUserElena(user) {
     return user.email.toLowerCase().includes("ele");
 }
 
-// Restituisce il nome del campo categorie in base all'utente (categorie_paolo o categorie_elena)
 function getCategoryFieldKey() {
     return isUserElena(currentUser) ? "categorie_elena" : "categorie_paolo";
 }
@@ -105,7 +104,7 @@ async function loadSalaryAndCategories() {
         }
 
         const catKey = getCategoryFieldKey();
-        const legacyCatKey = "categorie"; // campo vecchio generico
+        const legacyCatKey = "categorie";
 
         if (docSnap.exists()) {
             const data = docSnap.data();
@@ -122,7 +121,6 @@ async function loadSalaryAndCategories() {
             if (modalSalaryBase) modalSalaryBase.value = data.stipendio || "";
             if (modalSalaryExtra) modalSalaryExtra.value = salaryData.extraExpression;
 
-            // Legge dal campo specifico dell'utente, oppure dal campo legacy se non esiste
             let rawCategories = data[catKey] || data[legacyCatKey] || [];
             let normalizedSet = new Set(rawCategories.map(c => formatCategoryName(c)));
             categories = Array.from(normalizedSet).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
@@ -199,7 +197,6 @@ if (saveSalaryModalBtn) {
     });
 }
 
-// Regola di formattazione: prima parola con iniziale maiuscola, resto invariato
 function formatCategoryName(str) {
     if (!str) return "";
     str = str.trim();
@@ -221,7 +218,6 @@ function formatDateToEu(dateStr) {
     return dateStr;
 }
 
-// Gestione Autocompletamento Categorie in tempo reale
 function setupCategoryAutocomplete() {
     const input = document.getElementById('expense-category');
     const dropdown = document.getElementById('category-dropdown');
@@ -391,6 +387,14 @@ if (expenseForm) {
 
         const formattedCategory = formatCategoryName(rawCategory);
 
+        // CONTROLLO INTELLIGENTE: Se la categoria non esiste nell'elenco, la aggiunge in automatico!
+        if (!categories.includes(formattedCategory)) {
+            categories.push(formattedCategory);
+            categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
+            await saveCategoriesToFirebase();
+            setupCategoryAutocomplete();
+        }
+
         const data = { 
             importo: amount, 
             data: date, 
@@ -423,9 +427,9 @@ window.editExpense = (id) => {
     document.getElementById('cancel-edit-btn').classList.remove('hidden');
 };
 
-const cancelEditDbBtn = document.getElementById('cancel-edit-btn');
-if (cancelEditDbBtn) {
-    cancelEditDbBtn.addEventListener('click', resetForm);
+const cancelEditBtn = document.getElementById('cancel-edit-btn');
+if (cancelEditBtn) {
+    cancelEditBtn.addEventListener('click', resetForm);
 }
 
 function resetForm() {
@@ -474,7 +478,7 @@ function calculateDashboard() {
 
     const currentPeriodExpenses = expenses.filter(e => {
         if (!e.date) return false;
-        const p = e.date.text ? e.date.text.split('-') : e.date.split('-');
+        const p = e.date.split('-');
         const expDate = new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
         expDate.setHours(0,0,0,0);
         return expDate >= lastSalaryDate && expDate <= todayDateObj;
