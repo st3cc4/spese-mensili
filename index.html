@@ -7,7 +7,6 @@
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
     <style>
-        /* Stili specifici per la barra di navigazione inferiore ingrandita */
         .nav-bar {
             position: fixed;
             bottom: 0;
@@ -39,14 +38,12 @@
             padding-bottom: 90px !important;
         }
 
-        /* Regole di stile unificate per etichette e titoli */
         .card h3, .form-group label, .form-group-horizontal label {
             font-size: 14px !important;
             color: #3b5998 !important;
             font-weight: bold !important;
         }
 
-        /* Metriche con maggiore contrasto e prima lettera maiuscola */
         .metric-box span {
             font-size: 11px !important;
             font-weight: 600 !important;
@@ -58,7 +55,6 @@
             color: #212529 !important;
         }
 
-        /* Allineamento e larghezza 100% per le textbox dentro la finestra modale stipendio */
         .modal-content .form-group label {
             display: block;
             font-size: 14px !important;
@@ -74,6 +70,33 @@
             border: 1px solid #ccc !important;
             border-radius: 6px !important;
             background-color: #fff !important;
+        }
+
+        /* Stile per il box dei suggerimenti categorie */
+        #category-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            max-height: 160px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .category-suggestion-item {
+            padding: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 1px solid #f1f3f5;
+        }
+        .category-suggestion-item:hover {
+            background-color: #f8f9fa;
+            color: #3b5998;
+            font-weight: 600;
         }
     </style>
 </head>
@@ -139,7 +162,7 @@
                 </div>
             </div>
 
-            <!-- Modulo Inserimento / Modifica Spesa con Menu a Tendina Nativo Affidabile -->
+            <!-- Modulo Inserimento / Modifica Spesa con Categoria Filtrabile -->
             <div class="card card-highlight">
                 <h3 id="form-expense-title">Aggiungi Nuova Spesa</h3>
                 <form id="expense-form">
@@ -157,10 +180,11 @@
 
                     <div class="form-group form-group-horizontal">
                         <label>Categoria</label>
-                        <div class="category-select-wrapper" style="display: flex; gap: 8px; width: 100%;">
-                            <select id="expense-category" required style="flex: 1; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; background-color: #fff; box-sizing: border-box;">
-                                <option value="" disabled selected>Seleziona categoria...</option>
-                            </select>
+                        <div class="category-select-wrapper" style="display: flex; gap: 8px; width: 100%; position: relative;">
+                            <div style="flex: 1; position: relative;">
+                                <input type="text" id="expense-category" autocomplete="off" required placeholder="Scrivi o seleziona..." style="width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; background-color: #fff; box-sizing: border-box;">
+                                <div id="category-dropdown" class="hidden"></div>
+                            </div>
                             <button type="button" id="quick-add-category-btn" class="btn-orange-add" title="Gestisci Categorie" style="width: 42px; height: 42px; flex-shrink: 0;">+</button>
                         </div>
                     </div>
