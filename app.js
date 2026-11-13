@@ -119,7 +119,7 @@ async function loadSalaryAndCategories() {
 
             if (salaryDateInput) salaryDateInput.value = salaryData.nextDate;
             if (modalSalaryBase) modalSalaryBase.value = data.stipendio || "";
-            if (modalSalaryExtra) modalSalaryExtra.value = salaryData.extraExpression;
+            if (modalSalaryExtra) modalSalaryExtra.value = data.extraExpression;
 
             let rawCategories = data[catKey] || data[legacyCatKey] || [];
             let normalizedSet = new Set(rawCategories.map(c => formatCategoryName(c)));
@@ -197,6 +197,7 @@ if (saveSalaryModalBtn) {
     });
 }
 
+// Regola intelligente: prima parola con iniziale maiuscola e resto invariato
 function formatCategoryName(str) {
     if (!str) return "";
     str = str.trim();
@@ -259,42 +260,29 @@ function setupCategoryAutocomplete() {
     };
 }
 
-const quickAddCatBtn = document.getElementById('quick-add-category-btn');
-if (quickAddCatBtn) {
-    quickAddCatBtn.addEventListener('click', async () => {
-        const inputName = prompt("Inserisci il nome della nuova categoria (o scrivi una categoria esistente preceduta da '-' es. '-Sigarette' per eliminarla):");
-        if (!inputName || !inputName.trim()) return;
-        
-        let trimmed = inputName.trim();
-
-        if (trimmed.startsWith('-')) {
-            let targetCat = formatCategoryName(trimmed.substring(1));
-            const index = categories.indexOf(targetCat);
-            if (index > -1) {
-                if (confirm(`Vuoi davvero eliminare la categoria "${targetCat}"?`)) {
-                    categories.splice(index, 1);
-                    await saveCategoriesToFirebase();
-                    setupCategoryAutocomplete();
-                    document.getElementById('expense-category').value = '';
-                    alert(`Categoria "${targetCat}" eliminata.`);
-                }
-            } else {
-                alert(`La categoria "${targetCat}" non è stata trovata.`);
-            }
+// Gestione eliminazione categoria tramite il pulsante "X"
+const deleteCategoryBtn = document.getElementById('delete-category-btn');
+if (deleteCategoryBtn) {
+    deleteCategoryBtn.addEventListener('click', async () => {
+        const inputVal = document.getElementById('expense-category').value.trim();
+        if (!inputVal) {
+            alert("Scrivi o seleziona nel campo categoria il nome della categoria da eliminare.");
             return;
         }
 
-        const formattedName = formatCategoryName(trimmed);
+        const targetCat = formatCategoryName(inputVal);
+        const index = categories.indexOf(targetCat);
 
-        if (!categories.includes(formattedName)) {
-            categories.push(formattedName);
-            categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
-            await saveCategoriesToFirebase();
-            setupCategoryAutocomplete();
-            document.getElementById('expense-category').value = formattedName;
+        if (index > -1) {
+            if (confirm(`Vuoi davvero eliminare la categoria "${targetCat}"?`)) {
+                categories.splice(index, 1);
+                await saveCategoriesToFirebase();
+                setupCategoryAutocomplete();
+                document.getElementById('expense-category').value = '';
+                alert(`Categoria "${targetCat}" eliminata con successo.`);
+            }
         } else {
-            alert("Questa categoria esiste già!");
-            document.getElementById('expense-category').value = formattedName;
+            alert(`La categoria "${targetCat}" non è presente nell'elenco.`);
         }
     });
 }
@@ -387,7 +375,7 @@ if (expenseForm) {
 
         const formattedCategory = formatCategoryName(rawCategory);
 
-        // CONTROLLO INTELLIGENTE: Se la categoria non esiste nell'elenco, la aggiunge in automatico!
+        // Salvataggio automatico se la categoria è nuova
         if (!categories.includes(formattedCategory)) {
             categories.push(formattedCategory);
             categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
@@ -473,6 +461,7 @@ function calculateDashboard() {
     
     document.getElementById('days-left').innerText = diffDays > 0 ? diffDays : 0;
 
+    1; // dummy statement
     const lastSalaryDate = new Date(nextSalary);
     lastSalaryDate.setMonth(lastSalaryDate.getMonth() - 1);
 
