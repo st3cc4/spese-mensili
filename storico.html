@@ -16,11 +16,12 @@
             gap: 12px;
             margin-bottom: 10px;
         }
-        .filter-group-horizontal label {
-            flex: 0 0 110px;
-            font-size: 12px;
-            color: #3b5998;
-            font-weight: 600;
+        
+        /* Uniformità delle etichette e dei titoli (Cerchiati in rosso) */
+        .card h3, .filter-group-horizontal label {
+            font-size: 14px !important;
+            color: #3b5998 !important;
+            font-weight: bold !important;
             margin-bottom: 0;
         }
         .filter-group-horizontal select, 
@@ -39,9 +40,9 @@
         }
         .metric-box-stack span.metric-title {
             display: block;
-            font-size: 10px;
-            color: #6c757d;
-            text-transform: uppercase;
+            font-size: 11px;
+            color: #495057;
+            text-transform: capitalize;
             font-weight: 600;
             margin-bottom: 4px;
         }
@@ -83,6 +84,33 @@
         body {
             padding-bottom: 90px !important;
         }
+
+        /* Stile per il box dei suggerimenti autocomplete nel filtro testo */
+        #search-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            max-height: 160px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .search-suggestion-item {
+            padding: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 1px solid #f1f3f5;
+        }
+        .search-suggestion-item:hover {
+            background-color: #f8f9fa;
+            color: #3b5998;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -92,22 +120,25 @@
     </header>
 
     <div class="container">
-        <!-- Campo di Ricerca Rapida Testuale -->
+        <!-- Campo di Ricerca Rapida Testuale con Autocomplete (Cerchiato di verde) -->
         <div class="card">
-            <h3>Cerca Spesa</h3>
-            <div class="form-group filter-group-horizontal" style="margin-bottom: 0;">
+            <h3>Cerca spesa</h3>
+            <div class="form-group filter-group-horizontal" style="margin-bottom: 0; position: relative;">
                 <label>Filtra testo</label>
-                <input type="text" id="search-input" placeholder="Es. Sigarettes o 11.00">
+                <div style="flex: 1; position: relative;">
+                    <input type="text" id="search-input" autocomplete="off" placeholder="Es. Benzina o 11.00" style="width: 100%; padding: 8px 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+                    <div id="search-dropdown" class="hidden"></div>
+                </div>
             </div>
         </div>
 
         <!-- Filtri del Periodo con Checkbox Dinamici per Nome -->
         <div class="card">
-            <h3>Seleziona Periodo</h3>
+            <h3>Seleziona periodo</h3>
             
             <!-- Selezione Account tramite Checkbox -->
             <div style="display: flex; gap: 15px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.08); align-items: center; flex-wrap: wrap;">
-                <label style="font-size: 12px; color: #3b5998; font-weight: 600; margin-bottom: 0;">Account:</label>
+                <label style="font-size: 14px; color: #3b5998; font-weight: bold; margin-bottom: 0;">Account:</label>
                 <label style="font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
                     <input type="checkbox" id="chk-user1" style="width: auto; transform: scale(1.1);"> <span id="label-user1">Paolo</span>
                 </label>
@@ -117,7 +148,7 @@
             </div>
 
             <div class="filter-group-horizontal">
-                <label>Tipo di Filtro</label>
+                <label>Tipo di filtro</label>
                 <select id="filter-type">
                     <option value="day" selected>Giorno</option>
                     <option value="week">Settimana</option>
@@ -160,19 +191,19 @@
 
         <!-- Risultati Totali & Bilancio Affiancato -->
         <div class="card">
-            <h3>Risultati Periodo</h3>
+            <h3>Risultati periodo</h3>
             
-            <!-- Griglia Metriche: Totale Entrate e Totale Speso -->
+            <!-- Griglia Metriche: Totale Entrate (Cumulativo anno) e Totale Speso -->
             <div class="metric-grid" style="margin-bottom: 8px;">
                 <div class="metric-box-stack">
-                    <span class="metric-title">Totale Entrate</span>
+                    <span class="metric-title">Totale entrate</span>
                     <div class="amount-line">
                         <span class="income-amount">€</span>
                         <span id="filter-income-val" class="income-amount">0.00</span>
                     </div>
                 </div>
                 <div class="metric-box-stack">
-                    <span class="metric-title">Totale Speso</span>
+                    <span class="metric-title">Totale speso</span>
                     <div class="amount-line">
                         <span class="expense-amount">€</span>
                         <span id="filter-total-val" class="expense-amount">0.00</span>
@@ -180,19 +211,19 @@
                 </div>
             </div>
 
-            <!-- Bilancio Netto del Periodo -->
+            <!-- Bilancio Netto (Modificato in "Bilancio" come richiesto) -->
             <div class="metric-box" style="margin-bottom: 12px; background-color: #e9ecef;">
-                <span>Bilancio Netto del Periodo</span>
+                <span>Bilancio</span>
                 <strong id="filter-balance" style="font-size: 20px;">€ 0.00</strong>
             </div>
 
-            <h4>Totali per Categoria</h4>
+            <h3>Totali per categoria</h3>
             <div id="category-totals-list" style="margin-top: 8px;"></div>
         </div>
 
         <!-- Elenco Spese Filtrate con Pulsanti Modifica ed Elimina -->
         <div class="card">
-            <h3>Dettaglio Spese</h3>
+            <h3>Dettaglio spese</h3>
             <div id="filtered-expenses-list"></div>
         </div>
 
@@ -219,7 +250,6 @@
 
         let currentUser = null;
         let expenses = [];
-        let salaryConfig = { base: 0, extra: 0 };
         let rangePickerInstance = null;
         let selectedCustomFrom = null;
         let selectedCustomTo = null;
@@ -298,18 +328,6 @@
         });
 
         async function loadConfigAndExpenses() {
-            try {
-                const docRef = doc(db, "config", currentUser.uid);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    salaryConfig.base = parseFloat((data.stipendio || 0).toString().replace(',', '.')) || 0;
-                    salaryConfig.extra = parseFloat((data.extra || 0).toString().replace(',', '.')) || 0;
-                }
-            } catch (e) {
-                console.log("Errore caricamento configurazione:", e);
-            }
-
             const q = collection(db, "spese");
             const querySnapshot = await getDocs(q);
             expenses = [];
@@ -320,11 +338,12 @@
                     amount: parseFloat((data.importo || data.amount || 0).toString().replace(',', '.')) || 0,
                     date: data.data || data.date,
                     category: data.categoria || data.category,
-                    userId: data.userId || "" // Se vuoto, appartiene alle vecchie spese di Paolo
+                    userId: data.userId || "" 
                 });
             });
 
             populateYearsDropdown();
+            setupSearchAutocomplete();
             applyFilter();
         }
 
@@ -344,6 +363,57 @@
             sortedYears.forEach(y => {
                 yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
             });
+        }
+
+        // Configurazione Autocomplete per la ricerca testuale nello Storico
+        function setupSearchAutocomplete() {
+            const searchInput = document.getElementById('search-input');
+            const searchDropdown = document.getElementById('search-dropdown');
+            if (!searchInput || !searchDropdown) return;
+
+            // Raccoglie categorie uniche e testi utili dalle spese
+            const suggestionsSet = new Set();
+            expenses.forEach(e => {
+                if (e.category) suggestionsSet.add(e.category);
+            });
+            const suggestions = Array.from(suggestionsSet).sort();
+
+            function renderSearchDropdown(list) {
+                searchDropdown.innerHTML = '';
+                if (list.length === 0) {
+                    searchDropdown.classList.add('hidden');
+                    return;
+                }
+                list.forEach(itemText => {
+                    const item = document.createElement('div');
+                    item.className = 'search-suggestion-item';
+                    item.innerText = itemText;
+                    item.onclick = () => {
+                        searchInput.value = itemText;
+                        searchDropdown.classList.add('hidden');
+                        applyFilter();
+                    };
+                    searchDropdown.appendChild(item);
+                });
+                searchDropdown.classList.remove('hidden');
+            }
+
+            searchInput.onfocus = () => {
+                renderSearchDropdown(suggestions);
+            };
+
+            searchInput.oninput = (e) => {
+                const val = e.target.value.toLowerCase();
+                const filtered = suggestions.filter(s => s.toLowerCase().includes(val));
+                renderSearchDropdown(filtered);
+                applyFilter();
+            };
+
+            document.onclick = (e) => {
+                if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+                    searchDropdown.classList.add('hidden');
+                }
+            };
         }
 
         document.getElementById('filter-type').addEventListener('change', (e) => {
@@ -372,7 +442,6 @@
         document.getElementById('select-month').addEventListener('change', applyFilter);
         document.getElementById('select-week').addEventListener('input', applyFilter);
         document.getElementById('select-year').addEventListener('change', applyFilter);
-        document.getElementById('search-input').addEventListener('input', applyFilter);
         document.getElementById('chk-user1').addEventListener('change', applyFilter);
         document.getElementById('chk-user2').addEventListener('change', applyFilter);
 
@@ -396,9 +465,6 @@
             const isUserLoggedElena = email.includes("ele");
 
             const visibleExpenses = expenses.filter(e => {
-                // Se l'utente loggato è Paolo (user1):
-                // - le sue spese sono quelle con il suo UID OPPURE quelle senza userId (le vecchie)
-                // - le spese di Elena (user2) sono quelle con un userId diverso dal suo E non vuote.
                 const isUser1Expense = isUserLoggedElena 
                     ? (e.userId === currentUser.uid) 
                     : (e.userId === currentUser.uid || e.userId === "");
@@ -487,61 +553,25 @@
             const totalSpent = list.reduce((sum, e) => sum + e.amount, 0);
             document.getElementById('filter-total-val').innerText = totalSpent.toFixed(2);
 
-            let totalIncome = 0;
+            // Calcolo del Totale Entrate Cumulativo da inizio anno (Gennaio 2026) fino ad oggi
             let multiplier = 0;
             if (chkUser1) multiplier++;
             if (chkUser2) multiplier++;
 
-            if (type === 'month') {
-                const monthVal = document.getElementById('select-month').value; 
-                let baseInc = monthlySalaries2026[monthVal] !== undefined ? monthlySalaries2026[monthVal] : 0;
-                totalIncome = baseInc * multiplier;
-            } 
-            else if (type === 'day') {
-                const dayVal = document.getElementById('select-day').value; 
-                const monthKey = dayVal ? dayVal.substring(0, 7) : `${curYear}-${curMonth}`;
-                let baseInc = monthlySalaries2026[monthKey] !== undefined ? monthlySalaries2026[monthKey] : 0;
-                totalIncome = baseInc * multiplier;
-            } 
-            else if (type === 'week') {
-                let monthKey = `${curYear}-${curMonth}`;
-                if (from) {
-                    const y = from.getFullYear();
-                    const m = String(from.getMonth() + 1).padStart(2, '0');
-                    monthKey = `${y}-${m}`;
+            let totalIncomeYearToDate = 0;
+            const nowTime = new Date();
+            nowTime.setHours(23,59,59,999);
+
+            Object.entries(monthlySalaries2026).forEach(([mKey, amount]) => {
+                const [yStr, mStr] = mKey.split('-');
+                const monthDate = new Date(parseInt(yStr), parseInt(mStr) - 1, 1);
+                // Somma i mesi dell'anno corrente passati o correnti
+                if (monthDate <= nowTime) {
+                    totalIncomeYearToDate += (amount || 0);
                 }
-                let baseInc = monthlySalaries2026[monthKey] !== undefined ? monthlySalaries2026[monthKey] : 0;
-                totalIncome = baseInc * multiplier;
-            } 
-            else if (type === 'year') {
-                let yearSum = Object.values(monthlySalaries2026).reduce((a, b) => a + b, 0);
-                totalIncome = yearSum * multiplier;
-            } 
-            else if (type === 'custom' && from && to) {
-                let currentTimestamp = new Date(from);
-                currentTimestamp.setHours(0,0,0,0);
-                const endTimestamp = new Date(to);
-                endTimestamp.setHours(23,59,59,999);
+            });
 
-                let calculatedCustomIncome = 0;
-                while (currentTimestamp <= endTimestamp) {
-                    const y = currentTimestamp.getFullYear();
-                    const m = String(currentTimestamp.getMonth() + 1).padStart(2, '0');
-                    const monthKey = `${y}-${m}`;
-                    const monthSalary = monthlySalaries2026[monthKey] || 0;
-                    
-                    const daysInMonth = new Date(y, currentTimestamp.getMonth() + 1, 0).getDate();
-                    const dailyRate = monthSalary / daysInMonth;
-
-                    calculatedCustomIncome += dailyRate;
-                    currentTimestamp.setDate(currentTimestamp.getDate() + 1);
-                }
-                totalIncome = calculatedCustomIncome * multiplier;
-            } else {
-                let baseInc = monthlySalaries2026[`${curYear}-${curMonth}`] || 0;
-                totalIncome = baseInc * multiplier;
-            }
-
+            let totalIncome = totalIncomeYearToDate * multiplier;
             document.getElementById('filter-income-val').innerText = totalIncome.toFixed(2);
 
             const netBalance = totalIncome - totalSpent;
