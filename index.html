@@ -72,7 +72,6 @@
             background-color: #fff !important;
         }
 
-        /* Stile per il box dei suggerimenti categorie */
         #category-dropdown {
             position: absolute;
             top: 100%;
@@ -97,6 +96,23 @@
             background-color: #f8f9fa;
             color: #3b5998;
             font-weight: 600;
+        }
+
+        /* Stile pulsante Elimina Categoria (la X rossa/rossa scura) */
+        .btn-danger-action {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .btn-danger-action:hover {
+            background-color: #c82333;
         }
     </style>
 </head>
@@ -162,7 +178,7 @@
                 </div>
             </div>
 
-            <!-- Modulo Inserimento / Modifica Spesa con Categoria Filtrabile -->
+            <!-- Modulo Inserimento / Modifica Spesa con Categoria Filtrabile e Pulsante X -->
             <div class="card card-highlight">
                 <h3 id="form-expense-title">Aggiungi Nuova Spesa</h3>
                 <form id="expense-form">
@@ -185,7 +201,7 @@
                                 <input type="text" id="expense-category" autocomplete="off" required placeholder="Scrivi o seleziona..." style="width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; background-color: #fff; box-sizing: border-box;">
                                 <div id="category-dropdown" class="hidden"></div>
                             </div>
-                            <button type="button" id="quick-add-category-btn" class="btn-orange-add" title="Gestisci Categorie" style="width: 42px; height: 42px; flex-shrink: 0;">+</button>
+                            <button type="button" id="delete-category-btn" class="btn-danger-action" title="Elimina categoria selezionata" style="width: 42px; height: 42px; font-size: 18px; flex-shrink: 0;">✕</button>
                         </div>
                     </div>
 
