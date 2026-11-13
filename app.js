@@ -141,6 +141,7 @@ async function loadSalaryAndCategories() {
             if (modalSalaryExtra) modalSalaryExtra.value = "";
             categories = [];
         }
+        window.categories = categories; // Espone le categorie globalmente per la ricerca
         renderCategories();
     } catch (e) {
         console.error("Errore caricamento impostazioni:", e);
@@ -229,13 +230,8 @@ function formatDateToEu(dateStr) {
 }
 
 function renderCategories() {
-    const select = document.getElementById('expense-category');
-    if (!select) return;
-    select.innerHTML = '<option value="" disabled selected>Seleziona categoria...</option>';
-
-    categories.forEach((catName) => {
-        select.innerHTML += `<option value="${catName}">${catName}</option>`;
-    });
+    // Funzione di supporto, aggiorna la variabile globale
+    window.categories = categories;
 }
 
 const quickAddCatBtn = document.getElementById('quick-add-category-btn');
@@ -284,6 +280,7 @@ async function saveCategoriesToFirebase() {
     let currentData = docSnap.exists() ? docSnap.data() : {};
     currentData.categorie = categories;
     await setDoc(docRef, currentData);
+    window.categories = categories;
 }
 
 async function loadExpenses() {
@@ -355,7 +352,7 @@ if (expenseForm) {
         const amountInput = document.getElementById('expense-amount').value.toString().replace(',', '.');
         const amount = parseFloat(amountInput) || 0;
         const date = document.getElementById('expense-date').value;
-        const category = document.getElementById('expense-category').value;
+        const category = document.getElementById('expense-category').value.trim();
 
         if (!category) {
             alert("Seleziona una categoria valida.");
@@ -365,7 +362,7 @@ if (expenseForm) {
         const data = { 
             importo: amount, 
             data: date, 
-            categoria: category, 
+            categoria: capitalizeFirstOnly(category), 
             userId: currentUser.uid, 
             timestamp: new Date() 
         };
