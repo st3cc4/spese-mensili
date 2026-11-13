@@ -139,7 +139,7 @@
                 </div>
             </div>
 
-            <!-- Modulo Inserimento / Modifica Spesa con Categoria Ricercabile Funzionante -->
+            <!-- Modulo Inserimento / Modifica Spesa con Menu a Tendina Nativo Affidabile -->
             <div class="card card-highlight">
                 <h3 id="form-expense-title">Aggiungi Nuova Spesa</h3>
                 <form id="expense-form">
@@ -157,12 +157,10 @@
 
                     <div class="form-group form-group-horizontal">
                         <label>Categoria</label>
-                        <div class="category-select-wrapper" style="display: flex; gap: 8px; width: 100%; position: relative;">
-                            <input type="text" id="expense-category" autocomplete="off" required placeholder="Scrivi o seleziona..." style="flex: 1; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; background-color: #fff; box-sizing: border-box;">
-                            
-                            <!-- Tendina personalizzata per la ricerca delle categorie -->
-                            <div id="category-dropdown" class="hidden" style="position: absolute; top: 46px; left: 0; right: 50px; background: white; border: 1px solid #ccc; border-radius: 6px; max-height: 150px; overflow-y: auto; z-index: 99; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
-
+                        <div class="category-select-wrapper" style="display: flex; gap: 8px; width: 100%;">
+                            <select id="expense-category" required style="flex: 1; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; background-color: #fff; box-sizing: border-box;">
+                                <option value="" disabled selected>Seleziona categoria...</option>
+                            </select>
                             <button type="button" id="quick-add-category-btn" class="btn-orange-add" title="Gestisci Categorie" style="width: 42px; height: 42px; flex-shrink: 0;">+</button>
                         </div>
                     </div>
@@ -213,58 +211,5 @@
     </div>
 
     <script type="module" src="app.js"></script>
-    <script>
-        // Gestione interattiva della tendina categorie per ricerca e digitazione fluida
-        document.addEventListener("DOMContentLoaded", () => {
-            setTimeout(() => {
-                const catInput = document.getElementById('expense-category');
-                const catDropdown = document.getElementById('category-dropdown');
-                
-                if (catInput && window.categories) {
-                    catInput.addEventListener('focus', () => {
-                        showCategoryDropdown(window.categories);
-                    });
-
-                    catInput.addEventListener('input', (e) => {
-                        const val = e.target.value.toLowerCase();
-                        const filtered = window.categories.filter(c => c.toLowerCase().includes(val));
-                        showCategoryDropdown(filtered);
-                    });
-
-                    document.addEventListener('click', (e) => {
-                        if (!catInput.contains(e.target) && !catDropdown.contains(e.target)) {
-                            catDropdown.classList.add('hidden');
-                        }
-                    });
-                }
-            }, 1000);
-        });
-
-        function showCategoryDropdown(list) {
-            const catDropdown = document.getElementById('category-dropdown');
-            if (!catDropdown) return;
-            catDropdown.innerHTML = '';
-            if (list.length === 0) {
-                catDropdown.classList.add('hidden');
-                return;
-            }
-            list.forEach(cat => {
-                const item = document.createElement('div');
-                item.style.padding = '10px';
-                item.style.cursor = 'pointer';
-                item.style.borderBottom = '1px solid #eee';
-                item.style.fontSize = '14px';
-                item.innerText = cat;
-                item.onmouseover = () => item.style.backgroundColor = '#f1f3f5';
-                item.onmouseout = () => item.style.backgroundColor = 'white';
-                item.onclick = () => {
-                    document.getElementById('expense-category').value = cat;
-                    catDropdown.classList.add('hidden');
-                };
-                catDropdown.appendChild(item);
-            });
-            catDropdown.classList.remove('hidden');
-        }
-    </script>
 </body>
 </html>
