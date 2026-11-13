@@ -1,22 +1,41 @@
-const CACHE_NAME = 'spese-pwa-v1';
-const urlsToCache = [
-  './',
-  './index.html',
-  './storico.html',
-  './style.css',
-  './app.js',
-  './firebase-config.js',
-  './manifest.json'
+const CACHE_NAME = 'spese-mensili-v1';
+const assetsToCache = [
+  'index.html',
+  'storico.html',
+  'style.css',
+  'app.js',
+  'manifest.json'
 ];
 
+// Installazione del Service Worker e salvataggio in cache
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache))
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(assetsToCache);
+    })
   );
 });
 
+// Attivazione e pulizia delle vecchie cache
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      );
+    })
+  );
+});
+
+// Intercettazione delle richieste per il funzionamento offline
 self.addEventListener('fetch', (event) => {
   event.respondWith(
-    caches.match(event.request).then((response) => response || fetch(event.request))
+    caches.match(event.request).then((cachedResponse) => {
+      return cachedResponse || fetch(event.request);
+    })
   );
 });
