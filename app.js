@@ -16,7 +16,8 @@ const month = String(todayLocal.getMonth() + 1).padStart(2, '0');
 const day = String(todayLocal.getDate()).padStart(2, '0');
 const todayStr = `${year}-${month}-${day}`;
 
-document.getElementById('expense-date').value = todayStr;
+const expenseDateEl = document.getElementById('expense-date');
+if (expenseDateEl) expenseDateEl.value = todayStr;
 
 // Funzione per sapere se l'utente loggato è Elena
 function isUserElena(user) {
@@ -26,10 +27,13 @@ function isUserElena(user) {
 
 // Controllo Stato Autenticazione Fluido con isolamento dati per utente (UID)
 onAuthStateChanged(auth, async (user) => {
+    const authScreen = document.getElementById('auth-screen');
+    const appScreen = document.getElementById('app-screen');
+
     if (user) {
         currentUser = user;
-        document.getElementById('auth-screen').classList.add('hidden');
-        document.getElementById('app-screen').classList.remove('hidden');
+        if (authScreen) authScreen.classList.add('hidden');
+        if (appScreen) appScreen.classList.remove('hidden');
         await loadUserData();
         
         // Controlla se arriviamo dallo Storico per modificare una spesa passata
@@ -50,30 +54,38 @@ onAuthStateChanged(auth, async (user) => {
         }
     } else {
         currentUser = null;
-        document.getElementById('auth-screen').classList.remove('hidden');
-        document.getElementById('app-screen').classList.add('hidden');
+        if (authScreen) authScreen.classList.remove('hidden');
+        if (appScreen) appScreen.classList.add('hidden');
     }
 });
 
-// Login / Registrazione
-document.getElementById('login-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
+// Login / Registrazione con gestione errori visibile in console
+const loginForm = document.getElementById('login-form');
+if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
 
-    try {
-        await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
         try {
-            await createUserWithEmailAndPassword(auth, email, password);
-        } catch (err) {
-            alert("Errore durante l'accesso: " + err.message);
+            await signInWithEmailAndPassword(auth, email, password);
+        } catch (error) {
+            console.log("Tentativo di accesso fallito, provo la registrazione...", error.code);
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+            } catch (err) {
+                console.error("Errore critico autenticazione Firebase:", err);
+                alert("Errore durante l'accesso: " + err.message);
+            }
         }
-    }
-});
+    });
+}
 
 // Logout
-document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+const logoutBtn = document.getElementById('logout-btn');
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => signOut(auth));
+}
 
 // Caricamento Dati specifici dell'utente loggato
 async function loadUserData() {
@@ -81,13 +93,12 @@ async function loadUserData() {
     await loadExpenses();
 }
 
-// Gestione Stipendio e Categorie dal documento personale (con migrazione automatica dal vecchio documento per Paolo)
+// Gestione Stipendio e Categorie dal documento personale
 async function loadSalaryAndCategories() {
     try {
         const userDocRef = doc(db, "config", currentUser.uid);
         let docSnap = await getDoc(userDocRef);
 
-        // Se sei Paolo e il tuo nuovo documento personale ancora non esiste, recupera i tuoi vecchi dati da "impostazioni"
         if (!docSnap.exists() && !isUserElena(currentUser)) {
             const legacyDocRef = doc(db, "config", "impostazioni");
             const legacySnap = await getDoc(legacyDocRef);
@@ -104,9 +115,13 @@ async function loadSalaryAndCategories() {
             salaryData.extra = parseFloat((data.extra || 0).toString().replace(',', '.')) || 0;
             salaryData.extraExpression = data.extraExpression || (data.extra !== undefined ? data.extra.toString() : "0");
 
-            document.getElementById('salary-date').value = salaryData.nextDate;
-            document.getElementById('modal-salary-base').value = data.stipendio || "";
-            document.getElementById('modal-salary-extra').value = salaryData.extraExpression;
+            const salaryDateInput = document.getElementById('salary-date');
+            const modalSalaryBase = document.getElementById('modal-salary-base');
+            const modalSalaryExtra = document.getElementById('modal-salary-extra');
+
+            if (salaryDateInput) salaryDateInput.value = salaryData.nextDate;
+            if (modalSalaryBase) modalSalaryBase.value = data.stipendio || "";
+            if (modalSalaryExtra) modalSalaryExtra.value = salaryData.extraExpression;
 
             if (data.categorie) {
                 let rawCategories = data.categorie;
@@ -117,73 +132,86 @@ async function loadSalaryAndCategories() {
             }
         } else {
             salaryData = { nextDate: "", base: 0, extra: 0, extraExpression: "" };
-            document.getElementById('salary-date').value = "";
-            document.getElementById('modal-salary-base').value = "";
-            document.getElementById('modal-salary-extra').value = "";
+            const salaryDateInput = document.getElementById('salary-date');
+            const modalSalaryBase = document.getElementById('modal-salary-base');
+            const modalSalaryExtra = document.getElementById('modal-salary-extra');
+
+            if (salaryDateInput) salaryDateInput.value = "";
+            if (modalSalaryBase) modalSalaryBase.value = "";
+            if (modalSalaryExtra) modalSalaryExtra.value = "";
             categories = [];
         }
         renderCategories();
     } catch (e) {
-        console.log("Errore caricamento impostazioni:", e);
+        console.error("Errore caricamento impostazioni:", e);
     }
 }
 
-// Salvataggio automatico data prossimo stipendio associata all'utente
-document.getElementById('salary-date').addEventListener('change', async () => {
-    const nextDate = document.getElementById('salary-date').value;
-    salaryData.nextDate = nextDate;
+// Salvataggio automatico data prossimo stipendio
+const salaryDateEl = document.getElementById('salary-date');
+if (salaryDateEl) {
+    salaryDateEl.addEventListener('change', async () => {
+        const nextDate = salaryDateEl.value;
+        salaryData.nextDate = nextDate;
 
-    const docRef = doc(db, "config", currentUser.uid);
-    const docSnap = await getDoc(docRef);
-    let currentData = docSnap.exists() ? docSnap.data() : {};
-    
-    currentData.dataProssimoStipendio = nextDate;
-    await setDoc(docRef, currentData);
-    calculateDashboard();
-});
+        const docRef = doc(db, "config", currentUser.uid);
+        const docSnap = await getDoc(docRef);
+        let currentData = docSnap.exists() ? docSnap.data() : {};
+        
+        currentData.dataProssimoStipendio = nextDate;
+        await setDoc(docRef, currentData);
+        calculateDashboard();
+    });
+}
 
 // Gestione Apertura / Chiusura Modale Stipendio
 const salaryModal = document.getElementById('salary-modal');
-document.getElementById('open-salary-modal').addEventListener('click', () => {
-    salaryModal.classList.remove('hidden');
-});
-document.getElementById('close-salary-modal').addEventListener('click', () => {
-    salaryModal.classList.add('hidden');
-});
+const openSalaryModalBtn = document.getElementById('open-salary-modal');
+const closeSalaryModalBtn = document.getElementById('close-salary-modal');
 
-// Salvataggio dati stipendio nel documento personale dell'utente
-document.getElementById('save-salary-modal-btn').addEventListener('click', async () => {
-    const baseRaw = document.getElementById('modal-salary-base').value.trim().replace(',', '.');
-    const base = parseFloat(baseRaw) || 0;
-    const extraInput = document.getElementById('modal-salary-extra').value.trim();
+if (openSalaryModalBtn && salaryModal) {
+    openSalaryModalBtn.addEventListener('click', () => salaryModal.classList.remove('hidden'));
+}
+if (closeSalaryModalBtn && salaryModal) {
+    closeSalaryModalBtn.addEventListener('click', () => salaryModal.classList.add('hidden'));
+}
 
-    let evaluatedExtra = 0;
-    try {
-        const normalizedExtra = extraInput.replace(',', '.');
-        const sanitized = normalizedExtra.replace(/[^0-9+\-.\s]/g, '');
-        evaluatedExtra = sanitized ? eval(sanitized) : 0;
-    } catch (err) {
-        alert("Formato extra non valido. Controlla i valori inseriti.");
-        return;
-    }
+// Salvataggio dati stipendio nel modale
+const saveSalaryModalBtn = document.getElementById('save-salary-modal-btn');
+if (saveSalaryModalBtn) {
+    saveSalaryModalBtn.addEventListener('click', async () => {
+        const baseRaw = document.getElementById('modal-salary-base').value.trim().replace(',', '.');
+        const base = parseFloat(baseRaw) || 0;
+        const extraInput = document.getElementById('modal-salary-extra').value.trim();
 
-    salaryData.base = base;
-    salaryData.extra = evaluatedExtra;
-    salaryData.extraExpression = extraInput;
+        let evaluatedExtra = 0;
+        try {
+            const normalizedExtra = extraInput.replace(',', '.');
+            const sanitized = normalizedExtra.replace(/[^0-9+\-.\s]/g, '');
+            evaluatedExtra = sanitized ? eval(sanitized) : 0;
+        } catch (err) {
+            alert("Formato extra non valido. Controlla i valori inseriti.");
+            return;
+        }
 
-    const docRef = doc(db, "config", currentUser.uid);
-    const docSnap = await getDoc(docRef);
-    let currentData = docSnap.exists() ? docSnap.data() : {};
-    
-    currentData.stipendio = document.getElementById('modal-salary-base').value.trim();
-    currentData.extra = evaluatedExtra;
-    currentData.extraExpression = extraInput;
+        salaryData.base = base;
+        salaryData.extra = evaluatedExtra;
+        salaryData.extraExpression = extraInput;
 
-    await setDoc(docRef, currentData);
-    salaryModal.classList.add('hidden');
-    alert("Dati stipendio ed extra salvati!");
-    calculateDashboard();
-});
+        const docRef = doc(db, "config", currentUser.uid);
+        const docSnap = await getDoc(docRef);
+        let currentData = docSnap.exists() ? docSnap.data() : {};
+        
+        currentData.stipendio = document.getElementById('modal-salary-base').value.trim();
+        currentData.extra = evaluatedExtra;
+        currentData.extraExpression = extraInput;
+
+        await setDoc(docRef, currentData);
+        salaryModal.classList.add('hidden');
+        alert("Dati stipendio ed extra salvati!");
+        calculateDashboard();
+    });
+}
 
 function capitalizeFirstOnly(str) {
     if (!str) return "";
@@ -202,6 +230,7 @@ function formatDateToEu(dateStr) {
 
 function renderCategories() {
     const select = document.getElementById('expense-category');
+    if (!select) return;
     select.innerHTML = '<option value="" disabled selected>Seleziona categoria...</option>';
 
     categories.forEach((catName) => {
@@ -209,42 +238,45 @@ function renderCategories() {
     });
 }
 
-document.getElementById('quick-add-category-btn').addEventListener('click', async () => {
-    const inputName = prompt("Inserisci il nome della nuova categoria (o scrivi una categoria esistente preceduta da '-' es. '-Sigarette' per eliminarla):");
-    if (!inputName || !inputName.trim()) return;
-    
-    let trimmed = inputName.trim();
+const quickAddCatBtn = document.getElementById('quick-add-category-btn');
+if (quickAddCatBtn) {
+    quickAddCatBtn.addEventListener('click', async () => {
+        const inputName = prompt("Inserisci il nome della nuova categoria (o scrivi una categoria esistente preceduta da '-' es. '-Sigarette' per eliminarla):");
+        if (!inputName || !inputName.trim()) return;
+        
+        let trimmed = inputName.trim();
 
-    if (trimmed.startsWith('-')) {
-        let targetCat = capitalizeFirstOnly(trimmed.substring(1));
-        const index = categories.indexOf(targetCat);
-        if (index > -1) {
-            if (confirm(`Vuoi davvero eliminare la categoria "${targetCat}"?`)) {
-                categories.splice(index, 1);
-                await saveCategoriesToFirebase();
-                renderCategories();
-                document.getElementById('expense-category').value = '';
-                alert(`Categoria "${targetCat}" eliminata.`);
+        if (trimmed.startsWith('-')) {
+            let targetCat = capitalizeFirstOnly(trimmed.substring(1));
+            const index = categories.indexOf(targetCat);
+            if (index > -1) {
+                if (confirm(`Vuoi davvero eliminare la categoria "${targetCat}"?`)) {
+                    categories.splice(index, 1);
+                    await saveCategoriesToFirebase();
+                    renderCategories();
+                    document.getElementById('expense-category').value = '';
+                    alert(`Categoria "${targetCat}" eliminata.`);
+                }
+            } else {
+                alert(`La categoria "${targetCat}" non è stata trovata.`);
             }
-        } else {
-            alert(`La categoria "${targetCat}" non è stata trovata.`);
+            return;
         }
-        return;
-    }
 
-    const formattedName = capitalizeFirstOnly(trimmed);
+        const formattedName = capitalizeFirstOnly(trimmed);
 
-    if (!categories.includes(formattedName)) {
-        categories.push(formattedName);
-        categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
-        await saveCategoriesToFirebase();
-        renderCategories();
-        document.getElementById('expense-category').value = formattedName;
-    } else {
-        alert("Questa categoria esiste già!");
-        document.getElementById('expense-category').value = formattedName;
-    }
-});
+        if (!categories.includes(formattedName)) {
+            categories.push(formattedName);
+            categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
+            await saveCategoriesToFirebase();
+            renderCategories();
+            document.getElementById('expense-category').value = formattedName;
+        } else {
+            alert("Questa categoria esiste già!");
+            document.getElementById('expense-category').value = formattedName;
+        }
+    });
+}
 
 async function saveCategoriesToFirebase() {
     const docRef = doc(db, "config", currentUser.uid);
@@ -254,7 +286,6 @@ async function saveCategoriesToFirebase() {
     await setDoc(docRef, currentData);
 }
 
-// Caricamento Spese filtrate per l'utente corrente (includendo le vecchie spese senza userId per Paolo)
 async function loadExpenses() {
     try {
         const q = collection(db, "spese");
@@ -266,8 +297,6 @@ async function loadExpenses() {
             const data = docSnap.data();
             const expUserId = data.userId || "";
             
-            // Se è Elena: prende solo le spese con il suo UID.
-            // Se è Paolo: prende le spese con il suo UID oppure quelle vecchie senza userId.
             const belongsToUser = elenaLogged 
                 ? (expUserId === currentUser.uid)
                 : (expUserId === currentUser.uid || expUserId === "");
@@ -290,6 +319,7 @@ async function loadExpenses() {
 
 function renderExpenses() {
     const list = document.getElementById('recent-expenses-list');
+    if (!list) return;
     list.innerHTML = '';
 
     const todayExpenses = expenses.filter(exp => exp.date === todayStr);
@@ -317,37 +347,39 @@ function renderExpenses() {
     });
 }
 
-// Salvataggio spesa associata all'userId dell'utente loggato
-document.getElementById('expense-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id = document.getElementById('edit-expense-id').value;
-    const amountInput = document.getElementById('expense-amount').value.toString().replace(',', '.');
-    const amount = parseFloat(amountInput) || 0;
-    const date = document.getElementById('expense-date').value;
-    const category = document.getElementById('expense-category').value;
+const expenseForm = document.getElementById('expense-form');
+if (expenseForm) {
+    expenseForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('edit-expense-id').value;
+        const amountInput = document.getElementById('expense-amount').value.toString().replace(',', '.');
+        const amount = parseFloat(amountInput) || 0;
+        const date = document.getElementById('expense-date').value;
+        const category = document.getElementById('expense-category').value;
 
-    if (!category) {
-        alert("Seleziona una categoria valida.");
-        return;
-    }
+        if (!category) {
+            alert("Seleziona una categoria valida.");
+            return;
+        }
 
-    const data = { 
-        importo: amount, 
-        data: date, 
-        categoria: category, 
-        userId: currentUser.uid, 
-        timestamp: new Date() 
-    };
+        const data = { 
+            importo: amount, 
+            data: date, 
+            categoria: category, 
+            userId: currentUser.uid, 
+            timestamp: new Date() 
+        };
 
-    if (id) {
-        await updateDoc(doc(db, "spese", id), data);
-    } else {
-        await addDoc(collection(db, "spese"), data);
-    }
+        if (id) {
+            await updateDoc(doc(db, "spese", id), data);
+        } else {
+            await addDoc(collection(db, "spese"), data);
+        }
 
-    resetForm();
-    await loadExpenses();
-});
+        resetForm();
+        await loadExpenses();
+    });
+}
 
 window.editExpense = (id) => {
     const exp = expenses.find(e => e.id === id);
@@ -362,7 +394,10 @@ window.editExpense = (id) => {
     document.getElementById('cancel-edit-btn').classList.remove('hidden');
 };
 
-document.getElementById('cancel-edit-btn').addEventListener('click', resetForm);
+const cancelEditBtn = document.getElementById('cancel-edit-btn');
+if (cancelEditBtn) {
+    cancelEditBtn.addEventListener('click', resetForm);
+}
 
 function resetForm() {
     document.getElementById('edit-expense-id').value = '';
@@ -380,7 +415,6 @@ window.deleteExpense = async (id) => {
     }
 };
 
-// Calcoli Dashboard
 function calculateDashboard() {
     const spentToday = expenses
         .filter(e => e.date === todayStr)
