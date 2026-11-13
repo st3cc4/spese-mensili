@@ -17,7 +17,7 @@
             margin-bottom: 10px;
         }
         
-        /* Uniformità delle etichette e dei titoli (Cerchiati in rosso) */
+        /* Uniformità delle etichette e dei titoli */
         .card h3, .filter-group-horizontal label {
             font-size: 14px !important;
             color: #3b5998 !important;
@@ -120,7 +120,7 @@
     </header>
 
     <div class="container">
-        <!-- Campo di Ricerca Rapida Testuale con Autocomplete (Cerchiato di verde) -->
+        <!-- Campo di Ricerca Rapida Testuale con Autocomplete -->
         <div class="card">
             <h3>Cerca spesa</h3>
             <div class="form-group filter-group-horizontal" style="margin-bottom: 0; position: relative;">
@@ -211,7 +211,7 @@
                 </div>
             </div>
 
-            <!-- Bilancio Netto (Modificato in "Bilancio" come richiesto) -->
+            <!-- Bilancio Netto -->
             <div class="metric-box" style="margin-bottom: 12px; background-color: #e9ecef;">
                 <span>Bilancio</span>
                 <strong id="filter-balance" style="font-size: 20px;">€ 0.00</strong>
@@ -221,7 +221,7 @@
             <div id="category-totals-list" style="margin-top: 8px;"></div>
         </div>
 
-        <!-- Elenco Spese Filtrate con Pulsanti Modifica ed Elimina -->
+        <!-- Elenco Spese Filtrate con Ordinamento Corretto per Data -->
         <div class="card">
             <h3>Dettaglio spese</h3>
             <div id="filtered-expenses-list"></div>
@@ -365,13 +365,11 @@
             });
         }
 
-        // Configurazione Autocomplete per la ricerca testuale nello Storico
         function setupSearchAutocomplete() {
             const searchInput = document.getElementById('search-input');
             const searchDropdown = document.getElementById('search-dropdown');
             if (!searchInput || !searchDropdown) return;
 
-            // Raccoglie categorie uniche e testi utili dalle spese
             const suggestionsSet = new Set();
             expenses.forEach(e => {
                 if (e.category) suggestionsSet.add(e.category);
@@ -553,7 +551,6 @@
             const totalSpent = list.reduce((sum, e) => sum + e.amount, 0);
             document.getElementById('filter-total-val').innerText = totalSpent.toFixed(2);
 
-            // Calcolo del Totale Entrate Cumulativo da inizio anno (Gennaio 2026) fino ad oggi
             let multiplier = 0;
             if (chkUser1) multiplier++;
             if (chkUser2) multiplier++;
@@ -565,7 +562,6 @@
             Object.entries(monthlySalaries2026).forEach(([mKey, amount]) => {
                 const [yStr, mStr] = mKey.split('-');
                 const monthDate = new Date(parseInt(yStr), parseInt(mStr) - 1, 1);
-                // Somma i mesi dell'anno corrente passati o correnti
                 if (monthDate <= nowTime) {
                     totalIncomeYearToDate += (amount || 0);
                 }
@@ -612,7 +608,8 @@
                 return;
             }
 
-            list.sort((a, b) => new Date(b.date) - new Date(b.date)).forEach(exp => {
+            // Ordinamento corretto per data (dalla più recente alla meno recente)
+            list.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
                 const dateEu = formatDateToEu(exp.date);
                 listContainer.innerHTML += `
                     <div class="expense-item">
