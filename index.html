@@ -48,27 +48,27 @@
                 <input type="date" id="salary-date" style="width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px;">
             </div>
 
-            <!-- Riepilogo Budget -->
+            <!-- Riepilogo Budget (Con i numeri grandi sopra le etichette) -->
             <div class="card">
                 <h3 style="margin-top: 0; color: #3b5998; font-size: 16px; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 6px;">Riepilogo Budget</h3>
                 <div class="metric-grid" style="display: flex; gap: 10px; margin-bottom: 10px;">
-                    <div class="metric-box" style="flex: 1; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef;">
-                        <span style="font-size: 11px; color: #666; display: block;">Giorni Mancanti</span>
-                        <strong id="days-left" style="font-size: 18px;">0</strong>
+                    <div class="metric-box-stack" style="flex: 1; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef; text-align: center;">
+                        <strong id="days-left" style="font-size: 20px; display: block; color: #333;">0</strong>
+                        <span style="font-size: 11px; color: #666; display: block; margin-top: 2px;">Giorni Mancanti</span>
                     </div>
-                    <div class="metric-box" style="flex: 1; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef;">
-                        <span style="font-size: 11px; color: #666; display: block;">Speso Oggi</span>
-                        <strong id="spent-today" style="font-size: 18px;">€ 0.00</strong>
+                    <div class="metric-box-stack" style="flex: 1; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef; text-align: center;">
+                        <strong id="spent-today" style="font-size: 20px; display: block; color: #333;">€ 0.00</strong>
+                        <span style="font-size: 11px; color: #666; display: block; margin-top: 2px;">Speso Oggi</span>
                     </div>
                 </div>
                 <div class="metric-grid" style="display: flex; gap: 10px;">
-                    <div class="metric-box" style="flex: 1; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef;">
-                        <span style="font-size: 11px; color: #666; display: block;">Residuo</span>
-                        <strong id="salary-residue" style="font-size: 18px;">€ 0.00</strong>
+                    <div class="metric-box-stack" style="flex: 1; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef; text-align: center;">
+                        <strong id="salary-residue" style="font-size: 20px; display: block; color: #333;">€ 0.00</strong>
+                        <span style="font-size: 11px; color: #666; display: block; margin-top: 2px;">Residuo</span>
                     </div>
-                    <div class="metric-box" style="flex: 1; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef;">
-                        <span style="font-size: 11px; color: #666; display: block;">Al Giorno</span>
-                        <strong id="daily-budget" style="font-size: 18px;">€ 0.00</strong>
+                    <div class="metric-box-stack" style="flex: 1; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef; text-align: center;">
+                        <strong id="daily-budget" style="font-size: 20px; display: block; color: #333;">€ 0.00</strong>
+                        <span style="font-size: 11px; color: #666; display: block; margin-top: 2px;">Al Giorno</span>
                     </div>
                 </div>
             </div>
@@ -112,10 +112,11 @@
                 <div id="recent-expenses-list"></div>
             </div>
 
+            <!-- Firma personalizzata: 15px, blu #0000ff, grassetto e inclinata -->
             <div class="watermark-signature">Created by STECCA</div>
         </div>
 
-        <!-- Barra di Navigazione Fissa (IMPORTANTE: il link allo storico punta correttamente alla cartella) -->
+        <!-- Barra di Navigazione Fissa -->
         <nav class="nav-bar" style="position: fixed; bottom: 0; left: 0; right: 0; height: 75px; background: white; display: flex; border-top: 1px solid #ddd; box-shadow: -2px 5px rgba(0,0,0,0.05); z-index: 1000;">
             <a href="index.html" class="nav-item active" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; color: #3b5998; font-size: 13px; font-weight: 600;">
                 <span style="font-size: 24px; margin-bottom: 2px;">🏠</span> Dashboard
