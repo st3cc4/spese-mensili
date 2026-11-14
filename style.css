@@ -83,10 +83,12 @@ header h1 {
     font-weight: 600;
 }
 
+/* Firma personalizzata: 15px, blu #0000ff, grassetto e inclinata */
 .watermark-signature {
     text-align: right;
-    font-size: 11px;
-    font-style: italic;
-    color: #3b5998;
+    font-size: 15px !important;
+    font-weight: bold !important;
+    font-style: italic !important;
+    color: #0000ff !important;
     margin-top: 15px;
 }
