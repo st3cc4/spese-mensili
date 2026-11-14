@@ -5,22 +5,7 @@ let expenses = [];
 let rangePickerInstance = null;
 let selectedCustomFrom = null;
 let selectedCustomTo = null;
-
-// Tabella dei tuoi stipendi reali 2026 (Paolo)
-const paoloSalaries2026 = {
-    "2026-01": 1733.19,
-    "2026-02": 1895.23,
-    "2026-03": 1163.78,
-    "2026-04": 1327.81,
-    "2026-05": 1562.19,
-    "2026-06": 1149.45,
-    "2026-07": 2864.79,
-    "2026-08": 1369.93,
-    "2026-09": 1512.63,
-    "2026-10": 1415.57 + 139.20,
-    "2026-11": 1473.15 + 60,
-    "2026-12": 0.00
-};
+let userSalaryConfig = { base: 0, extra: 0 };
 
 function getISOWeekString(date) {
     const target = new Date(date.valueOf());
@@ -76,24 +61,20 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-let userSalaryConfig = { base: 0, extra: 0 };
-let elenaSalaryConfig = { base: 0, extra: 0 };
-
 async function loadConfigAndExpenses() {
     try {
-        // Carica configurazione utente corrente
         const userDocRef = doc(db, "config", currentUser.uid);
         const docSnap = await getDoc(userDocRef);
         if (docSnap.exists()) {
             const data = docSnap.data();
             userSalaryConfig.base = parseFloat((data.stipendio || 0).toString().replace(',', '.')) || 0;
             userSalaryConfig.extra = parseFloat((data.extra || 0).toString().replace(',', '.')) || 0;
+        } else {
+            userSalaryConfig = { base: 0, extra: 0 };
         }
-
-        // Se l'utente loggato è Paolo, proviamo a recuperare anche i dati di Elena da Firebase se salvati con il suo UID specifico
-        // (o viceversa)
     } catch (e) {
-        console.error("Errore caricamento stipendio:", e);
+        console.error("Errore caricamento configurazione:", e);
+        userSalaryConfig = { base: 0, extra: 0 };
     }
 
     const q = collection(db, "spese");
@@ -296,30 +277,8 @@ function renderResults(list, chkPaolo, chkElena) {
     const totalSpent = list.reduce((sum, e) => sum + e.amount, 0);
     document.getElementById('filter-total-val').innerText = totalSpent.toFixed(2);
 
-    const loggedIsElena = (currentUser.email || "").toLowerCase().includes("ele");
-    let totalIncome = 0;
-
-    // Calcolo entrate in base all'account spuntato nello Storico
-    if (chkPaolo) {
-        let paoloIncome = 0;
-        const nowTime = new Date();
-        nowTime.setHours(23,59,59,999);
-        Object.entries(paoloSalaries2026).forEach(([mKey, amount]) => {
-            const [yStr, mStr] = mKey.split('-');
-            const monthDate = new Date(parseInt(yStr), parseInt(mStr) - 1, 1);
-            if (monthDate <= nowTime) {
-                paoloIncome += (amount || 0);
-            }
-        });
-        totalIncome += paoloIncome;
-    }
-
-    if (chkElena) {
-        // Prende lo stipendio configurato da Elena (es. 2000 €)
-        const elenaIncome = (userSalaryConfig.base || 0) + (userSalaryConfig.extra || 0);
-        totalIncome += elenaIncome;
-    }
-
+    // Prende esattamente lo stipendio e gli extra salvati nel database dell'utente
+    let totalIncome = (userSalaryConfig.base || 0) + (userSalaryConfig.extra || 0);
     document.getElementById('filter-income-val').innerText = totalIncome.toFixed(2);
 
     const totalSpentYearAll = expenses.reduce((sum, e) => sum + e.amount, 0);
