@@ -119,7 +119,7 @@ async function loadSalaryAndCategories() {
 
             if (salaryDateInput) salaryDateInput.value = salaryData.nextDate;
             if (modalSalaryBase) modalSalaryBase.value = data.stipendio || "";
-            if (modalSalaryExtra) modalSalaryExtra.value = salaryData.extraExpression;
+            if (modalSalaryExtra) modalSalaryExtra.value = data.extraExpression;
 
             let rawCategories = data[catKey] || data[legacyCatKey] || [];
             let normalizedSet = new Set(rawCategories.map(c => formatCategoryName(c)));
@@ -306,7 +306,6 @@ async function loadExpenses() {
             const data = docSnap.data();
             const expUserId = data.userId || "";
             
-            // CORRETTO: Adesso l'utente loggato vede correttamente le proprie spese (salvate con il suo UID)
             const belongsToUser = (expUserId === currentUser.uid) || (!elenaLogged && expUserId === "");
 
             if (belongsToUser) {
@@ -438,9 +437,18 @@ function calculateDashboard() {
         .reduce((sum, e) => sum + e.amount, 0);
     document.getElementById('spent-today').innerText = `€ ${spentToday.toFixed(2)}`;
 
+    // Calcoliamo il totale di TUTTE le spese caricate dell'utente dall'inizio dell'anno (o del periodo) 
+    // oppure sottraiamo direttamente tutte le spese registrate dal totale entrate correnti
+    const totalIncome = (salaryData.base || 0) + (salaryData.extra || 0);
+    
+    // Somma di tutte le spese dell'utente presenti in memoria
+    const totalSpentPeriod = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+    const residue = totalIncome - totalSpentPeriod;
+    document.getElementById('salary-residue').innerText = `€ ${residue.toFixed(2)}`;
+
     if (!salaryData.nextDate) {
         document.getElementById('days-left').innerText = "0";
-        document.getElementById('salary-residue').innerText = "€ 0.00";
         document.getElementById('daily-budget').innerText = "€ 0.00";
         return;
     }
@@ -456,21 +464,6 @@ function calculateDashboard() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     document.getElementById('days-left').innerText = diffDays > 0 ? diffDays : 0;
-
-    const lastSalaryDate = new Date(nextSalary);
-    lastSalaryDate.setMonth(lastSalaryDate.getMonth() - 1);
-
-    const currentPeriodExpenses = expenses.filter(e => {
-        if (!e.date) return false;
-        const p = e.date.split('-');
-        const expDate = new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
-        expDate.setHours(0,0,0,0);
-        return expDate >= lastSalaryDate && expDate <= todayDateObj;
-    }).reduce((sum, e) => sum + e.amount, 0);
-
-    const totalIncome = (salaryData.base || 0) + (salaryData.extra || 0);
-    const residue = totalIncome - currentPeriodExpenses;
-    document.getElementById('salary-residue').innerText = `€ ${residue.toFixed(2)}`;
 
     const daysRemaining = diffDays > 0 ? diffDays : 1;
     const dailyBudget = residue > 0 ? (residue / daysRemaining) : 0;
