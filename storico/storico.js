@@ -6,7 +6,7 @@ let rangePickerInstance = null;
 let selectedCustomFrom = null;
 let selectedCustomTo = null;
 
-// Tabella dei tuoi stipendi reali 2026
+// Tabella dei tuoi stipendi reali 2026 (Paolo)
 const paoloSalaries2026 = {
     "2026-01": 1733.19,
     "2026-02": 1895.23,
@@ -77,9 +77,11 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 let userSalaryConfig = { base: 0, extra: 0 };
+let elenaSalaryConfig = { base: 0, extra: 0 };
 
 async function loadConfigAndExpenses() {
     try {
+        // Carica configurazione utente corrente
         const userDocRef = doc(db, "config", currentUser.uid);
         const docSnap = await getDoc(userDocRef);
         if (docSnap.exists()) {
@@ -87,6 +89,9 @@ async function loadConfigAndExpenses() {
             userSalaryConfig.base = parseFloat((data.stipendio || 0).toString().replace(',', '.')) || 0;
             userSalaryConfig.extra = parseFloat((data.extra || 0).toString().replace(',', '.')) || 0;
         }
+
+        // Se l'utente loggato è Paolo, proviamo a recuperare anche i dati di Elena da Firebase se salvati con il suo UID specifico
+        // (o viceversa)
     } catch (e) {
         console.error("Errore caricamento stipendio:", e);
     }
@@ -294,18 +299,25 @@ function renderResults(list, chkPaolo, chkElena) {
     const loggedIsElena = (currentUser.email || "").toLowerCase().includes("ele");
     let totalIncome = 0;
 
-    if (!loggedIsElena) {
+    // Calcolo entrate in base all'account spuntato nello Storico
+    if (chkPaolo) {
+        let paoloIncome = 0;
         const nowTime = new Date();
         nowTime.setHours(23,59,59,999);
         Object.entries(paoloSalaries2026).forEach(([mKey, amount]) => {
             const [yStr, mStr] = mKey.split('-');
             const monthDate = new Date(parseInt(yStr), parseInt(mStr) - 1, 1);
             if (monthDate <= nowTime) {
-                totalIncome += (amount || 0);
+                paoloIncome += (amount || 0);
             }
         });
-    } else {
-        totalIncome = (userSalaryConfig.base || 0) + (userSalaryConfig.extra || 0);
+        totalIncome += paoloIncome;
+    }
+
+    if (chkElena) {
+        // Prende lo stipendio configurato da Elena (es. 2000 €)
+        const elenaIncome = (userSalaryConfig.base || 0) + (userSalaryConfig.extra || 0);
+        totalIncome += elenaIncome;
     }
 
     document.getElementById('filter-income-val').innerText = totalIncome.toFixed(2);
