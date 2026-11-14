@@ -197,7 +197,6 @@ if (saveSalaryModalBtn) {
     });
 }
 
-// Regola intelligente: prima parola con iniziale maiuscola e resto invariato
 function formatCategoryName(str) {
     if (!str) return "";
     str = str.trim();
@@ -260,7 +259,6 @@ function setupCategoryAutocomplete() {
     };
 }
 
-// Gestione eliminazione categoria tramite il pulsante "X"
 const deleteCategoryBtn = document.getElementById('delete-category-btn');
 if (deleteCategoryBtn) {
     deleteCategoryBtn.addEventListener('click', async () => {
@@ -308,9 +306,8 @@ async function loadExpenses() {
             const data = docSnap.data();
             const expUserId = data.userId || "";
             
-            const belongsToUser = elenaLogged 
-                ? (expUserId === currentUser.uid)
-                : (expUserId === currentUser.uid || expUserId === "");
+            // CORRETTO: Adesso l'utente loggato vede correttamente le proprie spese (salvate con il suo UID)
+            const belongsToUser = (expUserId === currentUser.uid) || (!elenaLogged && expUserId === "");
 
             if (belongsToUser) {
                 expenses.push({ 
@@ -375,7 +372,6 @@ if (expenseForm) {
 
         const formattedCategory = formatCategoryName(rawCategory);
 
-        // Salvataggio automatico se la categoria è nuova
         if (!categories.includes(formattedCategory)) {
             categories.push(formattedCategory);
             categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
@@ -481,7 +477,6 @@ function calculateDashboard() {
     document.getElementById('daily-budget').innerText = `€ ${dailyBudget.toFixed(2)}`;
 }
 
-// Registrazione del Service Worker per la PWA
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
