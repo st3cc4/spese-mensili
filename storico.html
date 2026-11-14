@@ -242,7 +242,7 @@
     <script src="https://npmcdn.com/flatpickr/dist/l10n/it.js"></script>
 
     <script type="module">
-        import { auth, db, onAuthStateChanged, collection, getDocs, deleteDoc, doc, getDoc } from "./firebase-config.js";
+        import { auth, db, onAuthStateChanged, collection, getDocs, deleteDoc, doc } from "./firebase-config.js";
 
         let currentUser = null;
         let expenses = [];
@@ -324,15 +324,26 @@
             const q = collection(db, "spese");
             const querySnapshot = await getDocs(q);
             expenses = [];
+            const loggedIsElena = (currentUser.email || "").toLowerCase().includes("ele");
+
             querySnapshot.forEach((docSnap) => {
                 const data = docSnap.data();
-                expenses.push({ 
-                    id: docSnap.id, 
-                    amount: parseFloat((data.importo || data.amount || 0).toString().replace(',', '.')) || 0,
-                    date: data.data || data.date,
-                    category: data.categoria || data.category,
-                    userId: data.userId || "" 
-                });
+                const expUserId = data.userId || "";
+                
+                // Regola coerente con la dashboard: Paolo vede le sue (o senza ID se storiche), Elena vede le sue
+                const belongsToUser = loggedIsElena 
+                    ? (expUserId === currentUser.uid)
+                    : (expUserId === currentUser.uid || expUserId === "");
+
+                if (belongsToUser) {
+                    expenses.push({ 
+                        id: docSnap.id, 
+                        amount: parseFloat((data.importo || data.amount || 0).toString().replace(',', '.')) || 0,
+                        date: data.data || data.date,
+                        category: data.categoria || data.category,
+                        userId: expUserId 
+                    });
+                }
             });
 
             populateYearsDropdown();
@@ -452,77 +463,6 @@
             const searchText = document.getElementById('search-input').value.toLowerCase().trim();
             let from, to;
 
-            const visibleExpenses = expenses.filter(e => {
-                const isElenaExpense = (e.userId && e.userId !== "" && e.userId !== currentUser.uid && isUserElenaEmail(currentUser)); // Semplificato in base ai dati
-                // Per distinguere con precisione: verifichiamo se l'utente loggato è Elena
-                const email = (currentUser.email || "").toLowerCase();
-                const loggedIsElena = email.includes("ele");
-                
-                const isPaoloRecord = (e.userId === currentUser.uid && !loggedIsElena) || (!e.userId && !loggedIsElena);
-                const isElenaRecord = (e.userId === currentUser.uid && loggedIsElena);
-
-                // Logica di filtraggio basata sulle spunte fisse
-                let match = false;
-                if (chkPaolo && chkElena) match = true;
-                else if (chkPaolo && !chkElena) match = (e.userId === "" || !isUserEmailElena(e.userId)); // Adattato
-                // Semplificazione pulita basata sul proprietario registrato:
-                // Se il record appartiene a Paolo (userId di Paolo o vuoto) e chkPaolo è attivo
-                const recordIsElena = e.category && false; // Usiamo userId salvato
-                
-                // Filtro standard sicuro:
-                return true; 
-            });
-
-            // Filtro reale basato sui checkbox fissi Paolo (chk-user1) / Elena (chk-user2)
-            const filtered = expenses.filter(e => {
-                const email = (currentUser.email || "").toLowerCase();
-                const loggedIsElena = email.includes("ele");
-
-                // Determiniamo se la spesa è di Paolo o Elena in base all'utente loggato o a chi l'ha inserita
-                // Se non c'è userId o corrisponde a Paolo
-                const isElenaExpense = e.userId && e.userId !== "" && loggedIsElena; // o logica simile
-                
-                // Filtro per i checkbox fissi
-                let includeByUser = false;
-                const expenseBelongsToElena = (e.userId && e.userId !== "" && loggedIsElena); // da raffinare se l'uid è noto, oppure usiamo la regola che le spese senza uid o di Paolo vanno a Paolo
-                
-                // Modo più pulito: se chkPaolo è spuntato, mostra le spese di Paolo. Se chkElena è spuntato, mostra quelle di Elena.
-                // Distinguiamo le spese in base al logged user o al salvataggio
-                const isMyExpense = (e.userId === currentUser.uid);
-                
-                if (chkPaolo && chkElena) {
-                    includeByUser = true;
-                } else if (chkPaolo) {
-                    includeByUser = !loggedIsElena ? true : !isMyExpense; // da calibrare
-                } else if (chkElena) {
-                    includeByUser = loggedIsElena ? true : isMyExpense;
-                }
-
-                // Per semplicità e coerenza con la tua struttura multi-utente esistente:
-                const belongsToPaolo = (e.userId === currentUser.uid && !loggedIsElena) || (!e.userId);
-                const belongsToElena = (e.userId === currentUser.uid && loggedIsElena);
-
-                let passUser = false;
-                if (chkPaolo && chkElena) passUser = true;
-                else if (chkPaolo) passUser = !loggedIsElena; // se è loggato Paolo vede le sue
-                else if (chkElena) passUser = loggedIsElena; // se è loggata Elena vede le sue
-
-                if (!passUser) return false;
-
-                const d = new Date(e.date);
-                const matchDate = (d >= from && d <= to);
-                if (!matchDate) return false;
-
-                if (searchText) {
-                    const catMatch = (e.category || "").toLowerCase().includes(searchText);
-                    const amountMatch = e.amount.toFixed(2).includes(searchText) || e.amount.toString().includes(searchText);
-                    return catMatch || amountMatch;
-                }
-
-                return true;
-            });
-
-            // Gestione date
             if (type === 'day') {
                 const dayVal = document.getElementById('select-day').value;
                 if (!dayVal) return;
@@ -562,19 +502,7 @@
                 to = new Date(selectedCustomTo); to.setHours(23,59,59,999);
             }
 
-            // Filtro definitivo con le date corrette
             const finalFiltered = expenses.filter(e => {
-                const email = (currentUser.email || "").toLowerCase();
-                const loggedIsElena = email.includes("ele");
-
-                let passUser = false;
-                if (chkPaolo && chkElena) passUser = true;
-                else if (chkPaolo) passUser = !loggedIsElena;
-                else if (chkElena) passUser = loggedIsElena;
-                else return false;
-
-                if (!passUser) return false;
-
                 const d = new Date(e.date);
                 const matchDate = (d >= from && d <= to);
                 if (!matchDate) return false;
@@ -582,7 +510,7 @@
                 if (searchText) {
                     const catMatch = (e.category || "").toLowerCase().includes(searchText);
                     const amountMatch = e.amount.toFixed(2).includes(searchText) || e.amount.toString().includes(searchText);
-                    return catMatch || amountMatch;
+                    if (!catMatch && !amountMatch) return false;
                 }
                 return true;
             });
@@ -652,7 +580,7 @@
                 return;
             }
 
-            list.sort((a, b) => new Date(b.date) - new Date(new Date(b.date))).forEach(exp => {
+            list.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
                 const dateEu = formatDateToEu(exp.date);
                 listContainer.innerHTML += `
                     <div class="expense-item">
