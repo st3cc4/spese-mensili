@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storico Spese</title>
+    <!-- Collegamento al CSS nella stessa cartella -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Flatpickr CSS per il selettore intervallo date -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+</head>
+<body>
+
+    <header>
+        <h1>Storico</h1>
+    </header>
+
+    <div class="container">
+        <!-- Cerca Spesa -->
+        <div class="card">
+            <h3>Cerca spesa</h3>
+            <div class="form-group filter-group-horizontal" style="margin-bottom: 0; position: relative;">
+                <label>Filtra testo</label>
+                <div style="flex: 1; position: relative;">
+                    <input type="text" id="search-input" autocomplete="off" placeholder="Es. Benzina o 11.00">
+                    <div id="search-dropdown" class="hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seleziona Periodo -->
+        <div class="card">
+            <h3>Seleziona periodo</h3>
+            
+            <div class="account-filter-container">
+                <label style="font-size: 14px; color: #3b5998; font-weight: bold; margin-bottom: 0;">Account:</label>
+                <label style="font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                    <input type="checkbox" id="chk-user1" style="width: auto; transform: scale(1.1);"> Paolo
+                </label>
+                <label style="font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                    <input type="checkbox" id="chk-user2" style="width: auto; transform: scale(1.1);"> Elena
+                </label>
+            </div>
+
+            <div class="filter-group-horizontal">
+                <label>Tipo di filtro</label>
+                <select id="filter-type">
+                    <option value="day" selected>Giorno</option>
+                    <option value="week">Settimana</option>
+                    <option value="month">Mese</option>
+                    <option value="year">Anno</option>
+                    <option value="custom">Personalizzato</option>
+                </select>
+            </div>
+
+            <div id="selector-day-container" class="filter-group-horizontal">
+                <label>Giorno</label>
+                <input type="date" id="select-day">
+            </div>
+
+            <div id="selector-month-container" class="filter-group-horizontal hidden">
+                <label>Mese</label>
+                <input type="month" id="select-month">
+            </div>
+
+            <div id="selector-week-container" class="filter-group-horizontal hidden">
+                <label>Settimana</label>
+                <input type="week" id="select-week">
+            </div>
+
+            <div id="selector-year-container" class="filter-group-horizontal hidden">
+                <label>Anno</label>
+                <select id="select-year"></select>
+            </div>
+
+            <div id="custom-date-container" class="filter-group-horizontal hidden">
+                <label>Intervallo</label>
+                <input type="text" id="date-range-picker" placeholder="Inizio -> Fine">
+            </div>
+        </div>
+
+        <!-- Risultati Periodo & Bilancio -->
+        <div class="card">
+            <h3>Risultati periodo</h3>
+            
+            <div class="metric-grid" style="margin-bottom: 8px;">
+                <div class="metric-box-stack">
+                    <span class="metric-title">Totale entrate</span>
+                    <div class="amount-line">
+                        <span class="income-amount">€</span>
+                        <span id="filter-income-val" class="income-amount">0.00</span>
+                    </div>
+                </div>
+                <div class="metric-box-stack">
+                    <span class="metric-title">Totale speso</span>
+                    <div class="amount-line">
+                        <span class="expense-amount">€</span>
+                        <span id="filter-total-val" class="expense-amount">0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bilancio -->
+            <div class="metric-box" style="margin-bottom: 14px; background-color: #e9ecef;">
+                <span>Bilancio</span>
+                <strong id="filter-balance" style="font-size: 20px;">€ 0.00</strong>
+            </div>
+
+            <h3>Totali per categoria</h3>
+            <div id="category-totals-list" style="margin-top: 8px;"></div>
+        </div>
+
+        <!-- Dettaglio Spese -->
+        <div class="card">
+            <h3>Dettaglio spese</h3>
+            <div id="filtered-expenses-list"></div>
+        </div>
+
+        <div class="watermark-signature">Created by STECCA</div>
+    </div>
+
+    <!-- Barra di navigazione fissa -->
+    <nav class="nav-bar">
+        <a href="../index.html" class="nav-item">
+            <span>🏠</span> Dashboard
+        </a>
+        <a href="storico.html" class="nav-item active">
+            <span>📊</span> Storico
+        </a>
+    </nav>
+
+    <!-- Libreria Flatpickr per le date -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/it.js"></script>
+
+    <!-- Collegamento al file JavaScript esterno -->
+    <script type="module" src="storico.js"></script>
+</body>
+</html>
