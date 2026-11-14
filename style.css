@@ -1,221 +1,36 @@
-- {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-
 body {
+    font-family: Arial, sans-serif;
     background-color: #f4f6f9;
-    color: #333;
-    padding-bottom: 70px;
+    margin: 0;
+    padding: 15px;
+    padding-bottom: 90px !important;
 }
 
 header {
-    background-color: #3b5998;
-    color: white;
-    padding: 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+    margin-bottom: 20px;
 }
 
 header h1 {
-    font-size: 18px;
-    font-weight: 600;
+    color: #3b5998;
+    font-size: 22px;
 }
 
 .container {
-    padding: 12px;
     max-width: 600px;
     margin: 0 auto;
 }
 
 .card {
     background: white;
-    border-radius: 10px;
+    border-radius: 8px;
     padding: 15px;
-    margin-bottom: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    margin-bottom: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-/* Sfondo colorato vivace e in evidenza per il modulo spesa */
-.card-highlight {
-    background: linear-gradient(135deg, #e8f0fe 100%, #d5e3fc 0%);
-    border: 2px solid #b3d7ff;
-    box-shadow: 0 4px 10px rgba(59, 89, 152, 0.12);
-}
-
-.card h3 {
-    font-size: 15px;
-    color: #3b5998;
-    margin-bottom: 12px;
-    border-bottom: 1px solid rgba(0,0,0,0.08);
-    padding-bottom: 6px;
-}
-
-.form-group {
-    margin-bottom: 10px;
-}
-
-.form-group label {
-    display: block;
-    font-size: 11px;
-    color: #444;
-    margin-bottom: 4px;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* Stile per disporre etichetta e input sulla stessa riga nel modulo spesa */
-.form-group-horizontal {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 10px;
-}
-
-.form-group-horizontal label {
-    flex: 0 0 95px;
-    margin-bottom: 0;
-    font-size: 12px;
-    color: #3b5998;
-}
-
-.form-group-horizontal input, 
-.form-group-horizontal .category-select-wrapper {
-    flex: 1;
-}
-
-input, select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 14px;
-    background-color: #fff;
-}
-
-/* Wrapper Affiancamento Select + Pulsante Arancione */
-.category-select-wrapper {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.category-select-wrapper select, .category-select-wrapper input {
-    flex: 1;
-}
-
-.btn-orange-add {
-    background-color: #f9a500ff;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    width: 42px;
-    height: 42px;
-    font-size: 24px;
-    font-weight: bold;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-    transition: background-color 0.2s;
-    flex-shrink: 0;
-}
-
-.btn-orange-add:active {
-    background-color: #e09400;
-}
-
-.btn {
-    width: 100%;
-    padding: 12px;
-    background-color: #3b5998;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.btn-secondary {
-    background-color: #6c757d;
-}
-
-.btn-danger {
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
-}
-
-.btn-edit {
-    background-color: #ffc107;
-    border: none;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
-}
-
-.metric-grid {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 8px;
-}
-
-.metric-box {
-    flex: 1;
-    background-color: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 6px;
-    padding: 10px 8px;
-    text-align: center;
-}
-
-/* Stile per disporre le scritte in orizzontale dentro le card della dashboard */
-.metric-horizontal {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    text-align: left;
-    padding: 10px 12px;
-}
-
-.metric-horizontal span {
-    font-size: 11px;
-    color: #6c757d;
-    text-transform: uppercase;
-    font-weight: bold; /* Reso in grassetto mantenendo la dimensione originale a 11px */
-    margin-bottom: 0;
-}
-
-.metric-horizontal strong {
-    font-size: 15px;
-    color: #333;
-}
-
-/* Stili specifici per i totali e il simbolo euro nello Storico (stessa dimensione a 17.5px) */
-.income-amount {
-    color: #28a745 !important;
-    font-size: 17.5px !important;
-    font-weight: bold !important;
-}
-
-.expense-amount {
-    color: #dc3545 !important;
-    font-size: 17.5px !important;
-    font-weight: bold !important;
+.hidden {
+    display: none !important;
 }
 
 .expense-item {
@@ -223,11 +38,8 @@ input, select {
     justify-content: space-between;
     align-items: center;
     padding: 8px 0;
-    border-bottom: 1px solid #eee;
-}
-
-.expense-item:last-child {
-    border-bottom: none;
+    border-bottom: 1px solid #f1f3f5;
+    font-size: 14px;
 }
 
 .item-info {
@@ -236,8 +48,8 @@ input, select {
 }
 
 .item-title {
-    font-size: 13px;
-    font-weight: 600;
+    font-weight: bold;
+    color: #333;
 }
 
 .item-sub {
@@ -245,87 +57,36 @@ input, select {
     color: #888;
 }
 
-/* Stili Firma in basso a destra (Corsivo e Blu #0000ff) */
+.item-actions {
+    display: flex;
+    align-items: center;
+}
+
+.btn-edit, .btn-danger {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+}
+
+.category-suggestion-item {
+    padding: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.category-suggestion-item:hover {
+    background-color: #f8f9fa;
+    color: #3b5998;
+    font-weight: 600;
+}
+
 .watermark-signature {
     text-align: right;
-    font-size: 12px;
-    font-weight: bold;
-    font-style: italic;
-    color: #0000ff;
-    margin-top: 5px;
-    margin-bottom: 10px;
-    letter-spacing: 0.5px;
-}
-
-/* Stili Pop-up Modale */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    padding: 15px;
-}
-
-.modal-content {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    width: 100%;
-    max-width: 400px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-}
-
-.modal-content h3 {
-    font-size: 16px;
-    color: #3b5998;
-    margin-bottom: 15px;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 8px;
-}
-
-.nav-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
-    background: white;
-    display: flex;
-    border-top: 1px solid #ddd;
-    box-shadow: -2px 5px rgba(0,0,0,0.05);
-}
-
-.nav-item {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    color: #666;
     font-size: 11px;
-}
-
-.nav-item.active {
+    font-style: italic;
     color: #3b5998;
-    font-weight: bold;
-}
-
-.hidden {
-    display: none !important;
-}
-
-.auth-container {
-    max-width: 350px;
-    margin: 80px auto;
-    padding: 20px;
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    margin-top: 15px;
 }
