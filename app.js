@@ -437,11 +437,7 @@ function calculateDashboard() {
         .reduce((sum, e) => sum + e.amount, 0);
     document.getElementById('spent-today').innerText = `€ ${spentToday.toFixed(2)}`;
 
-    // Calcoliamo il totale di TUTTE le spese caricate dell'utente dall'inizio dell'anno (o del periodo) 
-    // oppure sottraiamo direttamente tutte le spese registrate dal totale entrate correnti
     const totalIncome = (salaryData.base || 0) + (salaryData.extra || 0);
-    
-    // Somma di tutte le spese dell'utente presenti in memoria
     const totalSpentPeriod = expenses.reduce((sum, e) => sum + e.amount, 0);
 
     const residue = totalIncome - totalSpentPeriod;
