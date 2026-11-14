@@ -141,7 +141,6 @@
         <div class="card">
             <h3>Seleziona periodo</h3>
             
-            <!-- Nomi fissi: Primo Paolo, Secondo Elena -->
             <div style="display: flex; gap: 15px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.08); align-items: center; flex-wrap: wrap;">
                 <label style="font-size: 14px; color: #3b5998; font-weight: bold; margin-bottom: 0;">Account:</label>
                 <label style="font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
@@ -242,28 +241,14 @@
     <script src="https://npmcdn.com/flatpickr/dist/l10n/it.js"></script>
 
     <script type="module">
-        import { auth, db, onAuthStateChanged, collection, getDocs, deleteDoc, doc } from "./firebase-config.js";
+        import { auth, db, onAuthStateChanged, collection, getDocs, deleteDoc, doc, getDoc } from "./firebase-config.js";
 
         let currentUser = null;
         let expenses = [];
+        let userSalaryConfig = { base: 0, extra: 0 };
         let rangePickerInstance = null;
         let selectedCustomFrom = null;
         let selectedCustomTo = null;
-
-        const monthlySalaries2026 = {
-            "2026-01": 1733.19,
-            "2026-02": 1895.23,
-            "2026-03": 1163.78,
-            "2026-04": 1327.81,
-            "2026-05": 1562.19,
-            "2026-06": 1149.45,
-            "2026-07": 2864.79,
-            "2026-08": 1369.93,
-            "2026-09": 1512.63,
-            "2026-10": 1415.57,
-            "2026-11": 0.00,
-            "2026-12": 0.00
-        };
 
         function getISOWeekString(date) {
             const target = new Date(date.valueOf());
@@ -310,17 +295,31 @@
                 const email = (user.email || "").toLowerCase();
                 const isUserElena = email.includes("ele");
                 
-                // Spunta automatica fissa: se accede Elena spunta Elena (chk-user2), altrimenti Paolo (chk-user1)
                 document.getElementById('chk-user1').checked = !isUserElena;
                 document.getElementById('chk-user2').checked = isUserElena;
 
-                await loadConfigAndExpenses();
+                await loadUserDataAndExpenses();
             } else {
                 window.location.href = "index.html";
             }
         });
 
-        async function loadConfigAndExpenses() {
+        async function loadUserDataAndExpenses() {
+            try {
+                const userDocRef = doc(db, "config", currentUser.uid);
+                const docSnap = await getDoc(userDocRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    userSalaryConfig.base = parseFloat((data.stipendio || 0).toString().replace(',', '.')) || 0;
+                    userSalaryConfig.extra = parseFloat((data.extra || 0).toString().replace(',', '.')) || 0;
+                } else {
+                    userSalaryConfig = { base: 0, extra: 0 };
+                }
+            } catch (e) {
+                console.error("Errore caricamento stipendio utente:", e);
+                userSalaryConfig = { base: 0, extra: 0 };
+            }
+
             const q = collection(db, "spese");
             const querySnapshot = await getDocs(q);
             expenses = [];
@@ -330,7 +329,6 @@
                 const data = docSnap.data();
                 const expUserId = data.userId || "";
                 
-                // Regola coerente con la dashboard: Paolo vede le sue (o senza ID se storiche), Elena vede le sue
                 const belongsToUser = loggedIsElena 
                     ? (expUserId === currentUser.uid)
                     : (expUserId === currentUser.uid || expUserId === "");
@@ -522,23 +520,8 @@
             const totalSpent = list.reduce((sum, e) => sum + e.amount, 0);
             document.getElementById('filter-total-val').innerText = totalSpent.toFixed(2);
 
-            let multiplier = 0;
-            if (chkPaolo) multiplier++;
-            if (chkElena) multiplier++;
-
-            let totalIncomeYearToDate = 0;
-            const nowTime = new Date();
-            nowTime.setHours(23,59,59,999);
-
-            Object.entries(monthlySalaries2026).forEach(([mKey, amount]) => {
-                const [yStr, mStr] = mKey.split('-');
-                const monthDate = new Date(parseInt(yStr), parseInt(mStr) - 1, 1);
-                if (monthDate <= nowTime) {
-                    totalIncomeYearToDate += (amount || 0);
-                }
-            });
-
-            let totalIncome = totalIncomeYearToDate * multiplier;
+            // Prende esattamente il totale entrate dell'utente (Stipendio base + Extra)
+            let totalIncome = (userSalaryConfig.base || 0) + (userSalaryConfig.extra || 0);
             document.getElementById('filter-income-val').innerText = totalIncome.toFixed(2);
 
             const totalSpentYearAll = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -610,7 +593,7 @@
             if (confirm("Vuoi cancellare questa spesa?")) {
                 try {
                     await deleteDoc(doc(db, "spese", id));
-                    await loadConfigAndExpenses();
+                    await loadUserDataAndExpenses();
                 } catch (err) {
                     alert("Errore durante l'eliminazione: " + err.message);
                 }
