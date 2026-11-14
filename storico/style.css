@@ -1,0 +1,226 @@
+/* Stili specifici e condivisi per la sezione Storico */
+.filter-group-horizontal {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.card h3 {
+    font-size: 16px !important;
+    color: #3b5998 !important;
+    font-weight: bold !important;
+    margin-bottom: 12px !important;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    padding-bottom: 6px;
+}
+
+.filter-group-horizontal label {
+    font-size: 14px !important;
+    color: #3b5998 !important;
+    font-weight: bold !important;
+    margin-bottom: 0;
+}
+
+.filter-group-horizontal select, 
+.filter-group-horizontal input {
+    flex: 1;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.account-filter-container {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.metric-box-stack {
+    flex: 1;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 10px 8px;
+    text-align: center;
+}
+
+.metric-box-stack span.metric-title {
+    display: block;
+    font-size: 11px;
+    color: #495057;
+    text-transform: capitalize;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.metric-box-stack .amount-line {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+}
+
+.nav-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 75px !important;
+    background: white;
+    display: flex;
+    border-top: 1px solid #ddd;
+    box-shadow: -2px 5px rgba(0,0,0,0.05);
+    z-index: 1000;
+}
+
+.nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: #666;
+    font-size: 13px !important;
+    font-weight: 600;
+}
+
+.nav-item span {
+    font-size: 24px !important;
+    margin-bottom: 2px;
+}
+
+.nav-item.active {
+    color: #3b5998;
+}
+
+body {
+    padding-bottom: 90px !important;
+    font-family: Arial, sans-serif;
+    background-color: #f4f6f9;
+    margin: 0;
+    padding: 15px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+header h1 {
+    color: #3b5998;
+    font-size: 22px;
+}
+
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.card {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.hidden {
+    display: none !important;
+}
+
+#search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ccc;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    max-height: 160px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.search-suggestion-item {
+    padding: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.search-suggestion-item:hover {
+    background-color: #f8f9fa;
+    color: #3b5998;
+    font-weight: 600;
+}
+
+.expense-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f3f5;
+    font-size: 14px;
+}
+
+.item-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.item-title {
+    font-weight: bold;
+    color: #333;
+}
+
+.item-sub {
+    font-size: 11px;
+    color: #888;
+}
+
+.item-actions {
+    display: flex;
+    align-items: center;
+}
+
+.btn-edit, .btn-danger {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+}
+
+.metric-grid {
+    display: flex;
+    gap: 10px;
+}
+
+.metric-box {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.watermark-signature {
+    text-align: right;
+    font-size: 11px;
+    font-style: italic;
+    color: #3b5998;
+    margin-top: 15px;
+}
