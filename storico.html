@@ -245,10 +245,25 @@
 
         let currentUser = null;
         let expenses = [];
-        let userSalaryConfig = { base: 0, extra: 0 };
         let rangePickerInstance = null;
         let selectedCustomFrom = null;
         let selectedCustomTo = null;
+
+        // I tuoi stipendi reali per il 2026 comprensivi di extra mensili
+        const paoloSalaries2026 = {
+            "2026-01": 1733.19,
+            "2026-02": 1895.23,
+            "2026-03": 1163.78,
+            "2026-04": 1327.81,
+            "2026-05": 1562.19,
+            "2026-06": 1149.45,
+            "2026-07": 2864.79,
+            "2026-08": 1369.93,
+            "2026-09": 1512.63,
+            "2026-10": 1415.57 + 139.20,
+            "2026-11": 1473.15 + 60,
+            "2026-12": 0.00
+        };
 
         function getISOWeekString(date) {
             const target = new Date(date.valueOf());
@@ -298,13 +313,15 @@
                 document.getElementById('chk-user1').checked = !isUserElena;
                 document.getElementById('chk-user2').checked = isUserElena;
 
-                await loadUserDataAndExpenses();
+                await loadConfigAndExpenses();
             } else {
                 window.location.href = "index.html";
             }
         });
 
-        async function loadUserDataAndExpenses() {
+        let userSalaryConfig = { base: 0, extra: 0 };
+
+        async function loadConfigAndExpenses() {
             try {
                 const userDocRef = doc(db, "config", currentUser.uid);
                 const docSnap = await getDoc(userDocRef);
@@ -312,12 +329,9 @@
                     const data = docSnap.data();
                     userSalaryConfig.base = parseFloat((data.stipendio || 0).toString().replace(',', '.')) || 0;
                     userSalaryConfig.extra = parseFloat((data.extra || 0).toString().replace(',', '.')) || 0;
-                } else {
-                    userSalaryConfig = { base: 0, extra: 0 };
                 }
             } catch (e) {
-                console.error("Errore caricamento stipendio utente:", e);
-                userSalaryConfig = { base: 0, extra: 0 };
+                console.error("Errore caricamento stipendio:", e);
             }
 
             const q = collection(db, "spese");
@@ -520,8 +534,25 @@
             const totalSpent = list.reduce((sum, e) => sum + e.amount, 0);
             document.getElementById('filter-total-val').innerText = totalSpent.toFixed(2);
 
-            // Prende esattamente il totale entrate dell'utente (Stipendio base + Extra)
-            let totalIncome = (userSalaryConfig.base || 0) + (userSalaryConfig.extra || 0);
+            const loggedIsElena = (currentUser.email || "").toLowerCase().includes("ele");
+            let totalIncome = 0;
+
+            if (!loggedIsElena) {
+                // Se è loggato Paolo, sommiamo i suoi stipendi reali mese per mese dell'anno in corso
+                const nowTime = new Date();
+                nowTime.setHours(23,59,59,999);
+                Object.entries(paoloSalaries2026).forEach(([mKey, amount]) => {
+                    const [yStr, mStr] = mKey.split('-');
+                    const monthDate = new Date(parseInt(yStr), parseInt(mStr) - 1, 1);
+                    if (monthDate <= nowTime) {
+                        totalIncome += (amount || 0);
+                    }
+                });
+            } else {
+                // Se è loggata Elena, prende lo stipendio base + extra configurato nel suo profilo
+                totalIncome = (userSalaryConfig.base || 0) + (userSalaryConfig.extra || 0);
+            }
+
             document.getElementById('filter-income-val').innerText = totalIncome.toFixed(2);
 
             const totalSpentYearAll = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -593,7 +624,7 @@
             if (confirm("Vuoi cancellare questa spesa?")) {
                 try {
                     await deleteDoc(doc(db, "spese", id));
-                    await loadUserDataAndExpenses();
+                    await loadConfigAndExpenses();
                 } catch (err) {
                     alert("Errore durante l'eliminazione: " + err.message);
                 }
