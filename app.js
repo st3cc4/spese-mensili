@@ -437,14 +437,9 @@ function calculateDashboard() {
         .reduce((sum, e) => sum + e.amount, 0);
     document.getElementById('spent-today').innerText = `€ ${spentToday.toFixed(2)}`;
 
-    const totalIncome = (salaryData.base || 0) + (salaryData.extra || 0);
-    const totalSpentPeriod = expenses.reduce((sum, e) => sum + e.amount, 0);
-
-    const residue = totalIncome - totalSpentPeriod;
-    document.getElementById('salary-residue').innerText = `€ ${residue.toFixed(2)}`;
-
     if (!salaryData.nextDate) {
         document.getElementById('days-left').innerText = "0";
+        document.getElementById('salary-residue').innerText = "€ 0.00";
         document.getElementById('daily-budget').innerText = "€ 0.00";
         return;
     }
@@ -460,6 +455,22 @@ function calculateDashboard() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     document.getElementById('days-left').innerText = diffDays > 0 ? diffDays : 0;
+
+    const lastSalaryDate = new Date(nextSalary);
+    lastSalaryDate.setMonth(lastSalaryDate.getMonth() - 1);
+
+    // CORRETTO: Somma solo le spese effettuate nel periodo corrente (tra lo stipendio precedente e oggi)
+    const currentPeriodExpenses = expenses.filter(e => {
+        if (!e.date) return false;
+        const p = e.date.split('-');
+        const expDate = new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
+        expDate.setHours(0,0,0,0);
+        return expDate >= lastSalaryDate && expDate <= todayDateObj;
+    }).reduce((sum, e) => sum + e.amount, 0);
+
+    const totalIncome = (salaryData.base || 0) + (salaryData.extra || 0);
+    const residue = totalIncome - currentPeriodExpenses;
+    document.getElementById('salary-residue').innerText = `€ ${residue.toFixed(2)}`;
 
     const daysRemaining = diffDays > 0 ? diffDays : 1;
     const dailyBudget = residue > 0 ? (residue / daysRemaining) : 0;
