@@ -39,13 +39,13 @@
         </header>
 
         <div class="container">
-            <!-- Data Stipendio con campo data in mezzo e pulsante ingranaggio affiancato -->
+            <!-- Data Stipendio: Scritta, Campo Data in mezzo e Ingranaggio sulla stessa riga -->
             <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <label style="font-size: 14px; color: #3b5998; font-weight: bold; margin-bottom: 0;">Data Stipendio</label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label style="font-size: 14px; color: #3b5998; font-weight: bold; white-space: nowrap; margin-bottom: 0;">Data Stipendio</label>
+                    <input type="date" id="salary-date" class="bold-input" style="flex: 1; margin-bottom: 0;">
                     <button id="open-salary-modal" class="btn-gear-colored" title="Imposta Stipendio ed Extra">⚙️</button>
                 </div>
-                <input type="date" id="salary-date" class="bold-input">
             </div>
 
             <!-- Riepilogo Budget (Scritte a sinistra, numeri grandi e in grassetto a destra) -->
