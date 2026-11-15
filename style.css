@@ -33,6 +33,35 @@ header h1 {
     display: none !important;
 }
 
+/* Pulsante ingranaggio colorato */
+.btn-gear-colored {
+    background-color: #3b5998;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: background-color 0.2s;
+}
+
+.btn-gear-colored:hover {
+    background-color: #2c4372;
+}
+
+/* Campi di input con numeri ingranditi e in grassetto */
+.bold-input {
+    width: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px !important;
+    font-weight: bold !important;
+    color: #333;
+}
+
 .expense-item {
     display: flex;
     justify-content: space-between;
