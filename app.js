@@ -27,6 +27,64 @@ function getCategoryFieldKey() {
     return isUserElena(currentUser) ? "categorie_elena" : "categorie_paolo";
 }
 
+// Gestione scambio schermate sulla tela senza ricaricare la pagina
+function showDashboardView() {
+    document.getElementById('view-dashboard').classList.remove('hidden');
+    document.getElementById('view-storico').classList.add('hidden');
+    
+    const btnDash = document.getElementById('nav-btn-dashboard');
+    const btnStorico = document.getElementById('nav-btn-storico');
+    btnDash.style.color = '#3b5998';
+    btnStorico.style.color = '#666';
+    
+    checkPendingEditFromStorage();
+    loadExpenses();
+}
+
+function showStoricoView() {
+    document.getElementById('view-dashboard').classList.add('hidden');
+    document.getElementById('view-storico').classList.remove('hidden');
+    
+    const btnDash = document.getElementById('nav-btn-dashboard');
+    const btnStorico = document.getElementById('nav-btn-storico');
+    btnDash.style.color = '#666';
+    btnStorico.style.color = '#3b5998';
+
+    // Aggiorna i dati dentro lo storico quando si apre la scheda
+    const frame = document.getElementById('storico-frame');
+    if (frame && frame.contentWindow && typeof frame.contentWindow.refreshStoricoData === 'function') {
+        frame.contentWindow.refreshStoricoData();
+    }
+}
+
+document.getElementById('nav-btn-dashboard').addEventListener('click', showDashboardView);
+document.getElementById('nav-btn-storico').addEventListener('click', showStoricoView);
+
+// Ascolta il comando di modifica inviato dallo Storico
+window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'EDIT_EXPENSE_FROM_HISTORY') {
+        showDashboardView();
+    }
+});
+
+function checkPendingEditFromStorage() {
+    const editId = localStorage.getItem('edit_id');
+    if (editId) {
+        document.getElementById('edit-expense-id').value = editId;
+        document.getElementById('expense-amount').value = localStorage.getItem('edit_amount');
+        document.getElementById('expense-date').value = localStorage.getItem('edit_date');
+        document.getElementById('expense-category').value = localStorage.getItem('edit_category');
+
+        document.getElementById('form-expense-title').innerText = "Modifica Spesa Storico";
+        document.getElementById('cancel-edit-btn').classList.remove('hidden');
+
+        localStorage.removeItem('edit_id');
+        localStorage.removeItem('edit_amount');
+        localStorage.removeItem('edit_date');
+        localStorage.removeItem('edit_category');
+    }
+}
+
 onAuthStateChanged(auth, async (user) => {
     const authScreen = document.getElementById('auth-screen');
     const appScreen = document.getElementById('app-screen');
@@ -36,22 +94,7 @@ onAuthStateChanged(auth, async (user) => {
         if (authScreen) authScreen.classList.add('hidden');
         if (appScreen) appScreen.classList.remove('hidden');
         await loadUserData();
-        
-        const editId = localStorage.getItem('edit_id');
-        if (editId) {
-            document.getElementById('edit-expense-id').value = editId;
-            document.getElementById('expense-amount').value = localStorage.getItem('edit_amount');
-            document.getElementById('expense-date').value = localStorage.getItem('edit_date');
-            document.getElementById('expense-category').value = localStorage.getItem('edit_category');
-
-            document.getElementById('form-expense-title').innerText = "Modifica Spesa Storico";
-            document.getElementById('cancel-edit-btn').classList.remove('hidden');
-
-            localStorage.removeItem('edit_id');
-            localStorage.removeItem('edit_amount');
-            localStorage.removeItem('edit_date');
-            localStorage.removeItem('edit_category');
-        }
+        checkPendingEditFromStorage();
     } else {
         currentUser = null;
         if (authScreen) authScreen.classList.remove('hidden');
@@ -459,7 +502,6 @@ function calculateDashboard() {
     const lastSalaryDate = new Date(nextSalary);
     lastSalaryDate.setMonth(lastSalaryDate.getMonth() - 1);
 
-    // CORRETTO: Somma solo le spese effettuate nel periodo corrente (tra lo stipendio precedente e oggi)
     const currentPeriodExpenses = expenses.filter(e => {
         if (!e.date) return false;
         const p = e.date.split('-');
