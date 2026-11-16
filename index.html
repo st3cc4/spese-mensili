@@ -7,12 +7,11 @@
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#3b5998">
-    <!-- Flatpickr CSS per calendario -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 </head>
 <body>
 
-    <!-- Schermata di Autenticazione (Nascosta all'avvio finché Firebase non verifica l'accesso) -->
+    <!-- Schermata di Autenticazione (Nascosta di default, appare SOLO se non sei loggato) -->
     <div id="auth-screen" class="container hidden">
         <div class="card" style="margin-top: 50px; text-align: center;">
             <h2>Accesso Spese Mensili</h2>
@@ -31,101 +30,109 @@
         </div>
     </div>
 
-    <!-- Schermata Principale dell'Applicazione -->
+    <!-- Cornice Principale dell'Applicazione -->
     <div id="app-screen" class="hidden">
-        <header style="display: flex; justify-content: space-between; align-items: center; padding: 0 15px;">
-            <h1 style="margin: 0;">Dashboard</h1>
-            <button id="logout-btn" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">Esci</button>
-        </header>
+        
+        <!-- TELA 1: DASHBOARD -->
+        <div id="view-dashboard">
+            <header style="display: flex; justify-content: space-between; align-items: center; padding: 0 15px;">
+                <h1 style="margin: 0;">Dashboard</h1>
+                <button id="logout-btn" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">Esci</button>
+            </header>
 
-        <div class="container">
-            <!-- Data Stipendio: Scritta, Campo Data in mezzo e Ingranaggio sulla stessa riga -->
-            <div class="card">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <label style="font-size: 14px; color: #3b5998; font-weight: bold; white-space: nowrap; margin-bottom: 0;">Data Stipendio</label>
-                    <input type="date" id="salary-date" class="bold-input" style="flex: 1; margin-bottom: 0;">
-                    <button id="open-salary-modal" class="btn-gear-colored" title="Imposta Stipendio ed Extra">⚙️</button>
+            <div class="container">
+                <!-- Data Stipendio -->
+                <div class="card">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label style="font-size: 14px; color: #3b5998; font-weight: bold; white-space: nowrap; margin-bottom: 0;">Data Stipendio</label>
+                        <input type="date" id="salary-date" class="bold-input" style="flex: 1; margin-bottom: 0;">
+                        <button id="open-salary-modal" class="btn-gear-colored" title="Imposta Stipendio ed Extra">⚙️</button>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Riepilogo Budget (Scritte a sinistra, numeri grandi e in grassetto a destra) -->
-            <div class="card">
-                <h3 style="margin-top: 0; color: #3b5998; font-size: 16px; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 6px;">Riepilogo Budget</h3>
-                <div class="metric-grid" style="display: flex; gap: 10px; margin-bottom: 10px;">
-                    <div class="metric-box-row" style="flex: 1; background: #f8f9fa; padding: 12px 10px; border-radius: 6px; border: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 13px; color: #495057; font-weight: 600;">Giorni Mancanti</span>
-                        <strong id="days-left" style="font-size: 18px; font-weight: bold; color: #333;">0</strong>
+                <!-- Riepilogo Budget -->
+                <div class="card">
+                    <h3 style="margin-top: 0; color: #3b5998; font-size: 16px; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 6px;">Riepilogo Budget</h3>
+                    <div class="metric-grid" style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <div class="metric-box-row" style="flex: 1; background: #f8f9fa; padding: 12px 10px; border-radius: 6px; border: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 13px; color: #495057; font-weight: 600;">Giorni Mancanti</span>
+                            <strong id="days-left" style="font-size: 18px; font-weight: bold; color: #333;">0</strong>
+                        </div>
+                        <div class="metric-box-row" style="flex: 1; background: #f8f9fa; padding: 12px 10px; border-radius: 6px; border: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 13px; color: #495057; font-weight: 600;">Speso Oggi</span>
+                            <strong id="spent-today" style="font-size: 18px; font-weight: bold; color: #333;">€ 0.00</strong>
+                        </div>
                     </div>
-                    <div class="metric-box-row" style="flex: 1; background: #f8f9fa; padding: 12px 10px; border-radius: 6px; border: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 13px; color: #495057; font-weight: 600;">Speso Oggi</span>
-                        <strong id="spent-today" style="font-size: 18px; font-weight: bold; color: #333;">€ 0.00</strong>
+                    <div class="metric-grid" style="display: flex; gap: 10px;">
+                        <div class="metric-box-row" style="flex: 1; background: #f8f9fa; padding: 12px 10px; border-radius: 6px; border: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 13px; color: #495057; font-weight: 600;">Residuo</span>
+                            <strong id="salary-residue" style="font-size: 18px; font-weight: bold; color: #333;">€ 0.00</strong>
+                        </div>
+                        <div class="metric-box-row" style="flex: 1; background: #f8f9fa; padding: 12px 10px; border-radius: 6px; border: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 13px; color: #495057; font-weight: 600;">Al Giorno</span>
+                            <strong id="daily-budget" style="font-size: 18px; font-weight: bold; color: #333;">€ 0.00</strong>
+                        </div>
                     </div>
                 </div>
-                <div class="metric-grid" style="display: flex; gap: 10px;">
-                    <div class="metric-box-row" style="flex: 1; background: #f8f9fa; padding: 12px 10px; border-radius: 6px; border: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 13px; color: #495057; font-weight: 600;">Residuo</span>
-                        <strong id="salary-residue" style="font-size: 18px; font-weight: bold; color: #333;">€ 0.00</strong>
-                    </div>
-                    <div class="metric-box-row" style="flex: 1; background: #f8f9fa; padding: 12px 10px; border-radius: 6px; border: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 13px; color: #495057; font-weight: 600;">Al Giorno</span>
-                        <strong id="daily-budget" style="font-size: 18px; font-weight: bold; color: #333;">€ 0.00</strong>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Modulo Inserimento Spesa (Importo e Data affiancati) -->
-            <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 6px;">
-                    <h3 id="form-expense-title" style="margin: 0; color: #3b5998; font-size: 16px;">Aggiungi Nuova Spesa</h3>
-                    <button id="cancel-edit-btn" class="hidden" style="background: #6c757d; color: white; border: none; padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;">Annulla</button>
-                </div>
-                
-                <form id="expense-form">
-                    <input type="hidden" id="edit-expense-id">
+                <!-- Modulo Inserimento Spesa -->
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 6px;">
+                        <h3 id="form-expense-title" style="margin: 0; color: #3b5998; font-size: 16px;">Aggiungi Nuova Spesa</h3>
+                        <button id="cancel-edit-btn" class="hidden" style="background: #6c757d; color: white; border: none; padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;">Annulla</button>
+                    </div>
                     
-                    <!-- Riga affiancata per Importo e Data -->
-                    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                            <label style="font-size: 14px; font-weight: bold; color: #3b5998;">Importo (€)</label>
-                            <input type="number" step="0.01" id="expense-amount" required placeholder="0.00" class="bold-input">
+                    <form id="expense-form">
+                        <input type="hidden" id="edit-expense-id">
+                        
+                        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <label style="font-size: 14px; font-weight: bold; color: #3b5998;">Importo (€)</label>
+                                <input type="number" step="0.01" id="expense-amount" required placeholder="0.00" class="bold-input">
+                            </div>
+                            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <label style="font-size: 14px; font-weight: bold; color: #3b5998;">Data</label>
+                                <input type="date" id="expense-date" required class="bold-input">
+                            </div>
                         </div>
-                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                            <label style="font-size: 14px; font-weight: bold; color: #3b5998;">Data</label>
-                            <input type="date" id="expense-date" required class="bold-input">
-                        </div>
-                    </div>
 
-                    <div class="form-group" style="margin-bottom: 15px; position: relative;">
-                        <label style="font-size: 14px; font-weight: bold; color: #3b5998;">Categoria</label>
-                        <div style="display: flex; gap: 5px;">
-                            <input type="text" id="expense-category" autocomplete="off" required placeholder="Scrivi o seleziona..." style="flex: 1; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-weight: bold;">
-                            <button type="button" id="delete-category-btn" style="background: #dc3545; color: white; border: none; padding: 0 12px; border-radius: 6px; cursor: pointer; font-size: 16px;" title="Elimina categoria selezionata">×</button>
+                        <div class="form-group" style="margin-bottom: 15px; position: relative;">
+                            <label style="font-size: 14px; font-weight: bold; color: #3b5998;">Categoria</label>
+                            <div style="display: flex; gap: 5px;">
+                                <input type="text" id="expense-category" autocomplete="off" required placeholder="Scrivi o seleziona..." style="flex: 1; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-weight: bold;">
+                                <button type="button" id="delete-category-btn" style="background: #dc3545; color: white; border: none; padding: 0 12px; border-radius: 6px; cursor: pointer; font-size: 16px;" title="Elimina categoria selezionata">×</button>
+                            </div>
+                            <div id="category-dropdown" class="hidden" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; border-radius: 0 0 6px 6px; max-height: 150px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
                         </div>
-                        <div id="category-dropdown" class="hidden" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; border-radius: 0 0 6px 6px; max-height: 150px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
-                    </div>
 
-                    <button type="submit" style="width: 100%; padding: 12px; background-color: #3b5998; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Salva Spesa</button>
-                </form>
+                        <button type="submit" style="width: 100%; padding: 12px; background-color: #3b5998; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Salva Spesa</button>
+                    </form>
+                </div>
+
+                <!-- Lista Spese di Oggi -->
+                <div class="card">
+                    <h3 style="margin-top: 0; color: #3b5998; font-size: 16px; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 6px;">Spese di oggi</h3>
+                    <div id="recent-expenses-list"></div>
+                </div>
+
+                <!-- Firma personalizzata -->
+                <div class="watermark-signature">Created by STECCA</div>
             </div>
-
-            <!-- Lista Spese di Oggi -->
-            <div class="card">
-                <h3 style="margin-top: 0; color: #3b5998; font-size: 16px; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 6px;">Spese di oggi</h3>
-                <div id="recent-expenses-list"></div>
-            </div>
-
-            <!-- Firma personalizzata: 15px, blu #0000ff, grassetto e inclinata -->
-            <div class="watermark-signature">Created by STECCA</div>
         </div>
 
-        <!-- Barra di Navigazione Fissa -->
-        <nav class="nav-bar" style="position: fixed; bottom: 0; left: 0; right: 0; height: 75px; background: white; display: flex; border-top: 1px solid #ddd; box-shadow: -2px 5px rgba(0,0,0,0.05); z-index: 1000;">
-            <a href="index.html" class="nav-item active" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; color: #3b5998; font-size: 13px; font-weight: 600;">
+        <!-- TELA 2: STORICO (Caricata nella cornice senza ricaricare la pagina) -->
+        <div id="view-storico" class="hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 75px; background: #f4f6f9; z-index: 900;">
+            <iframe id="storico-frame" src="storico/storico.html" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+        </div>
+
+        <!-- Barra di Navigazione Fissa (Scambia le tele istantaneamente senza login) -->
+        <nav class="nav-bar" style="position: fixed; bottom: 0; left: 0; right: 0; height: 75px; background: white; display: flex; border-top: 1px solid #ddd; box-shadow: 0 -2px 5px rgba(0,0,0,0.05); z-index: 1000;">
+            <button type="button" id="nav-btn-dashboard" class="nav-item active" style="flex: 1; background: none; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #3b5998; font-size: 13px; font-weight: 600; cursor: pointer;">
                 <span style="font-size: 24px; margin-bottom: 2px;">🏠</span> Dashboard
-            </a>
-            <a href="storico/storico.html" class="nav-item" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; color: #666; font-size: 13px; font-weight: 600;">
+            </button>
+            <button type="button" id="nav-btn-storico" class="nav-item" style="flex: 1; background: none; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #666; font-size: 13px; font-weight: 600; cursor: pointer;">
                 <span style="font-size: 24px; margin-bottom: 2px;">📊</span> Storico
-            </a>
+            </button>
         </nav>
     </div>
 
