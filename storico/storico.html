@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Storico Spese</title>
-    <!-- Collegamento al file CSS corretto -->
     <link rel="stylesheet" href="stile-storico.css">
-    <!-- Flatpickr CSS per il selettore intervallo date -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 </head>
 <body>
@@ -19,10 +17,10 @@
         <!-- Cerca Spesa -->
         <div class="card">
             <h3>Cerca spesa</h3>
-            <div class="form-group filter-group-horizontal" style="margin-bottom: 0; position: relative;">
+            <div class="filter-group-horizontal" style="margin-bottom: 0; position: relative;">
                 <label>Filtra testo</label>
                 <div style="flex: 1; position: relative;">
-                    <input type="text" id="search-input" autocomplete="off" placeholder="Es. Benzina o 11.00">
+                    <input type="text" id="search-input" autocomplete="off" placeholder="Es. Benzina o 11.00" class="bold-input">
                     <div id="search-dropdown" class="hidden"></div>
                 </div>
             </div>
@@ -34,48 +32,48 @@
             
             <div class="account-filter-container">
                 <label style="font-size: 14px; color: #3b5998; font-weight: bold; margin-bottom: 0;">Account:</label>
-                <label style="font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
-                    <input type="checkbox" id="chk-user1" style="width: auto; transform: scale(1.1);"> Paolo
+                <label class="checkbox-label">
+                    <input type="checkbox" id="chk-user1"> Paolo
                 </label>
-                <label style="font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
-                    <input type="checkbox" id="chk-user2" style="width: auto; transform: scale(1.1);"> Elena
+                <label class="checkbox-label">
+                    <input type="checkbox" id="chk-user2"> Elena
                 </label>
             </div>
 
             <div class="filter-group-horizontal">
                 <label>Tipo di filtro</label>
-                <select id="filter-type">
-                    <option value="day" selected>Giorno</option>
+                <select id="filter-type" class="bold-input">
+                    <option value="day">Giorno</option>
                     <option value="week">Settimana</option>
-                    <option value="month">Mese</option>
+                    <option value="month" selected>Mese</option>
                     <option value="year">Anno</option>
                     <option value="custom">Personalizzato</option>
                 </select>
             </div>
 
-            <div id="selector-day-container" class="filter-group-horizontal">
+            <div id="selector-day-container" class="filter-group-horizontal hidden">
                 <label>Giorno</label>
-                <input type="date" id="select-day">
+                <input type="date" id="select-day" class="bold-input">
             </div>
 
-            <div id="selector-month-container" class="filter-group-horizontal hidden">
+            <div id="selector-month-container" class="filter-group-horizontal">
                 <label>Mese</label>
-                <input type="month" id="select-month">
+                <input type="month" id="select-month" class="bold-input">
             </div>
 
             <div id="selector-week-container" class="filter-group-horizontal hidden">
                 <label>Settimana</label>
-                <input type="week" id="select-week">
+                <input type="week" id="select-week" class="bold-input">
             </div>
 
             <div id="selector-year-container" class="filter-group-horizontal hidden">
                 <label>Anno</label>
-                <select id="select-year"></select>
+                <select id="select-year" class="bold-input"></select>
             </div>
 
             <div id="custom-date-container" class="filter-group-horizontal hidden">
                 <label>Intervallo</label>
-                <input type="text" id="date-range-picker" placeholder="Inizio -> Fine">
+                <input type="text" id="date-range-picker" placeholder="Inizio -> Fine" class="bold-input">
             </div>
         </div>
 
@@ -83,26 +81,20 @@
         <div class="card">
             <h3>Risultati periodo</h3>
             
-            <div class="metric-grid" style="margin-bottom: 8px;">
-                <div class="metric-box-stack">
-                    <span class="metric-title">Totale entrate</span>
-                    <div class="amount-line">
-                        <span class="income-amount">€</span>
-                        <span id="filter-income-val" class="income-amount">0.00</span>
-                    </div>
+            <div class="metric-grid" style="margin-bottom: 10px;">
+                <div class="metric-box-row">
+                    <span class="metric-label">Totale Entrate</span>
+                    <strong id="filter-income-val" class="income-amount">€ 0.00</strong>
                 </div>
-                <div class="metric-box-stack">
-                    <span class="metric-title">Totale speso</span>
-                    <div class="amount-line">
-                        <span class="expense-amount">€</span>
-                        <span id="filter-total-val" class="expense-amount">0.00</span>
-                    </div>
+                <div class="metric-box-row">
+                    <span class="metric-label">Totale Speso</span>
+                    <strong id="filter-total-val" class="expense-amount">€ 0.00</strong>
                 </div>
             </div>
 
             <!-- Bilancio -->
-            <div class="metric-box" style="margin-bottom: 14px; background-color: #e9ecef;">
-                <span>Bilancio</span>
+            <div class="metric-box-row" style="margin-bottom: 16px; background-color: #e9ecef;">
+                <span class="metric-label" style="font-size: 14px;">Bilancio</span>
                 <strong id="filter-balance" style="font-size: 20px;">€ 0.00</strong>
             </div>
 
@@ -116,6 +108,7 @@
             <div id="filtered-expenses-list"></div>
         </div>
 
+        <!-- Firma personalizzata -->
         <div class="watermark-signature">Created by STECCA</div>
     </div>
 
@@ -129,11 +122,8 @@
         </a>
     </nav>
 
-    <!-- Libreria Flatpickr per le date -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/it.js"></script>
-
-    <!-- Collegamento al file JavaScript esterno -->
     <script type="module" src="storico.js"></script>
 </body>
 </html>
