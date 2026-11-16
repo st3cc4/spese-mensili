@@ -1,11 +1,11 @@
-import { auth, db, onAuthStateChanged, collection, getDocs, deleteDoc, doc, getDoc } from "../firebase-config.js";
+import { auth, db, onAuthStateChanged, collection, getDocs, deleteDoc, doc } from "../firebase-config.js";
 
 let currentUser = null;
-let expenses = [];
-let rangePickerInstance = null;
+let allExpenses = [];
+let paoloConfig = { base: 0, extra: 0, uid: "" };
+let elenaConfig = { base: 0, extra: 0, uid: "" };
 let selectedCustomFrom = null;
 let selectedCustomTo = null;
-let userSalaryConfig = { base: 0, extra: 0 };
 
 function getISOWeekString(date) {
     const target = new Date(date.valueOf());
@@ -31,7 +31,7 @@ document.getElementById('select-day').value = `${curYear}-${curMonth}-${curDay}`
 document.getElementById('select-month').value = `${curYear}-${curMonth}`;
 document.getElementById('select-week').value = getISOWeekString(now);
 
-rangePickerInstance = flatpickr("#date-range-picker", {
+flatpickr("#date-range-picker", {
     mode: "range",
     locale: "it",
     dateFormat: "Y-m-d",
@@ -55,51 +55,60 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('chk-user1').checked = !isUserElena;
         document.getElementById('chk-user2').checked = isUserElena;
 
-        await loadConfigAndExpenses();
+        await loadAllConfigsAndExpenses();
     } else {
         window.location.href = "../index.html";
     }
 });
 
-async function loadConfigAndExpenses() {
+async function loadAllConfigsAndExpenses() {
+    paoloConfig = { base: 0, extra: 0, uid: "" };
+    elenaConfig = { base: 0, extra: 0, uid: "" };
+
     try {
-        const userDocRef = doc(db, "config", currentUser.uid);
-        const docSnap = await getDoc(userDocRef);
-        if (docSnap.exists()) {
+        // Legge tutte le configurazioni salvate in "config" per associare Paolo ed Elena
+        const configSnapshot = await getDocs(collection(db, "config"));
+        configSnapshot.forEach((docSnap) => {
+            if (docSnap.id === "impostazioni") return;
             const data = docSnap.data();
-            userSalaryConfig.base = parseFloat((data.stipendio || 0).toString().replace(',', '.')) || 0;
-            userSalaryConfig.extra = parseFloat((data.extra || 0).toString().replace(',', '.')) || 0;
-        } else {
-            userSalaryConfig = { base: 0, extra: 0 };
-        }
+            const baseVal = parseFloat((data.stipendio || 0).toString().replace(',', '.')) || 0;
+            const extraVal = parseFloat((data.extra || 0).toString().replace(',', '.')) || 0;
+
+            // Riconosce l'account tramite le categorie dedicate o tramite l'utente attualmente loggato
+            const isDocElena = Array.isArray(data.categorie_elena) || 
+                               ((currentUser.email || "").toLowerCase().includes("ele") && docSnap.id === currentUser.uid);
+
+            if (isDocElena) {
+                elenaConfig = { base: baseVal, extra: extraVal, uid: docSnap.id };
+            } else {
+                paoloConfig = { base: baseVal, extra: extraVal, uid: docSnap.id };
+            }
+        });
     } catch (e) {
-        console.error("Errore caricamento configurazione:", e);
-        userSalaryConfig = { base: 0, extra: 0 };
+        console.error("Errore caricamento configurazioni:", e);
     }
 
-    const q = collection(db, "spese");
-    const querySnapshot = await getDocs(q);
-    expenses = [];
-    const loggedIsElena = (currentUser.email || "").toLowerCase().includes("ele");
+    try {
+        const querySnapshot = await getDocs(collection(db, "spese"));
+        allExpenses = [];
 
-    querySnapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        const expUserId = data.userId || "";
-        
-        const belongsToUser = loggedIsElena 
-            ? (expUserId === currentUser.uid)
-            : (expUserId === currentUser.uid || expUserId === "");
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const expUserId = data.userId || "";
+            const owner = (elenaConfig.uid && expUserId === elenaConfig.uid) ? "elena" : "paolo";
 
-        if (belongsToUser) {
-            expenses.push({ 
+            allExpenses.push({ 
                 id: docSnap.id, 
                 amount: parseFloat((data.importo || data.amount || 0).toString().replace(',', '.')) || 0,
                 date: data.data || data.date,
                 category: data.categoria || data.category,
-                userId: expUserId 
+                userId: expUserId,
+                owner: owner
             });
-        }
-    });
+        });
+    } catch (e) {
+        console.error("Errore caricamento spese:", e);
+    }
 
     populateYearsDropdown();
     setupSearchAutocomplete();
@@ -108,7 +117,7 @@ async function loadConfigAndExpenses() {
 
 function populateYearsDropdown() {
     const yearsSet = new Set();
-    expenses.forEach(e => {
+    allExpenses.forEach(e => {
         if (e.date) {
             const y = new Date(e.date).getFullYear();
             if (!isNaN(y)) yearsSet.add(y);
@@ -130,7 +139,7 @@ function setupSearchAutocomplete() {
     if (!searchInput || !searchDropdown) return;
 
     const suggestionsSet = new Set();
-    expenses.forEach(e => {
+    allExpenses.forEach(e => {
         if (e.category) suggestionsSet.add(e.category);
     });
     const suggestions = Array.from(suggestionsSet).sort();
@@ -155,9 +164,7 @@ function setupSearchAutocomplete() {
         searchDropdown.classList.remove('hidden');
     }
 
-    searchInput.onfocus = () => {
-        renderSearchDropdown(suggestions);
-    };
+    searchInput.onfocus = () => renderSearchDropdown(suggestions);
 
     searchInput.oninput = (e) => {
         const val = e.target.value.toLowerCase();
@@ -211,6 +218,11 @@ function formatDateToEu(dateStr) {
     return dateStr;
 }
 
+function parseLocalDate(dateStr) {
+    const parts = dateStr.split('-');
+    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+}
+
 function applyFilter() {
     const chkPaolo = document.getElementById('chk-user1').checked;
     const chkElena = document.getElementById('chk-user2').checked;
@@ -221,17 +233,15 @@ function applyFilter() {
     if (type === 'day') {
         const dayVal = document.getElementById('select-day').value;
         if (!dayVal) return;
-        from = new Date(dayVal); from.setHours(0,0,0,0);
-        to = new Date(dayVal); to.setHours(23,59,59,999);
-    }
-    else if (type === 'month') {
+        from = parseLocalDate(dayVal); from.setHours(0, 0, 0, 0);
+        to = parseLocalDate(dayVal); to.setHours(23, 59, 59, 999);
+    } else if (type === 'month') {
         const monthVal = document.getElementById('select-month').value;
         if (!monthVal) return;
         const [y, m] = monthVal.split('-');
-        from = new Date(parseInt(y), parseInt(m) - 1, 1);
-        to = new Date(parseInt(y), parseInt(m), 0, 23, 59, 59);
-    } 
-    else if (type === 'week') {
+        from = new Date(parseInt(y), parseInt(m) - 1, 1, 0, 0, 0, 0);
+        to = new Date(parseInt(y), parseInt(m), 0, 23, 59, 59, 999);
+    } else if (type === 'week') {
         const weekVal = document.getElementById('select-week').value;
         if (!weekVal) return;
         const [yearStr, weekStr] = weekVal.split('-W');
@@ -242,26 +252,31 @@ function applyFilter() {
         const ISOweekStart = simple;
         if (dow <= 4) ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
         else ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
-        from = new Date(ISOweekStart); from.setHours(0,0,0,0);
-        to = new Date(from); to.setDate(from.getDate() + 6); to.setHours(23,59,59,999);
-    } 
-    else if (type === 'year') {
+        from = new Date(ISOweekStart); from.setHours(0, 0, 0, 0);
+        to = new Date(from); to.setDate(from.getDate() + 6); to.setHours(23, 59, 59, 999);
+    } else if (type === 'year') {
         const yearNum = parseInt(document.getElementById('select-year').value);
         if (!yearNum) return;
-        from = new Date(yearNum, 0, 1);
-        to = new Date(yearNum, 11, 31, 23, 59, 59);
-    } 
-    else if (type === 'custom') {
+        from = new Date(yearNum, 0, 1, 0, 0, 0, 0);
+        to = new Date(yearNum, 11, 31, 23, 59, 59, 999);
+    } else if (type === 'custom') {
         if (!selectedCustomFrom || !selectedCustomTo) return;
-        from = new Date(selectedCustomFrom); from.setHours(0,0,0,0);
-        to = new Date(selectedCustomTo); to.setHours(23,59,59,999);
+        from = new Date(selectedCustomFrom); from.setHours(0, 0, 0, 0);
+        to = new Date(selectedCustomTo); to.setHours(23, 59, 59, 999);
     }
 
-    const finalFiltered = expenses.filter(e => {
-        const d = new Date(e.date);
-        const matchDate = (d >= from && d <= to);
-        if (!matchDate) return false;
+    const finalFiltered = allExpenses.filter(e => {
+        if (!e.date) return false;
+        
+        // Filtro account
+        if (e.owner === "paolo" && !chkPaolo) return false;
+        if (e.owner === "elena" && !chkElena) return false;
 
+        // Filtro data
+        const d = parseLocalDate(e.date);
+        if (d < from || d > to) return false;
+
+        // Filtro testo
         if (searchText) {
             const catMatch = (e.category || "").toLowerCase().includes(searchText);
             const amountMatch = e.amount.toFixed(2).includes(searchText) || e.amount.toString().includes(searchText);
@@ -275,15 +290,18 @@ function applyFilter() {
 
 function renderResults(list, chkPaolo, chkElena) {
     const totalSpent = list.reduce((sum, e) => sum + e.amount, 0);
-    document.getElementById('filter-total-val').innerText = totalSpent.toFixed(2);
+    document.getElementById('filter-total-val').innerText = `€ ${totalSpent.toFixed(2)}`;
 
-    // Prende esattamente lo stipendio e gli extra salvati nel database dell'utente
-    let totalIncome = (userSalaryConfig.base || 0) + (userSalaryConfig.extra || 0);
-    document.getElementById('filter-income-val').innerText = totalIncome.toFixed(2);
+    let totalIncome = 0;
+    if (chkPaolo) {
+        totalIncome += (paoloConfig.base || 0) + (paoloConfig.extra || 0);
+    }
+    if (chkElena) {
+        totalIncome += (elenaConfig.base || 0) + (elenaConfig.extra || 0);
+    }
+    document.getElementById('filter-income-val').innerText = `€ ${totalIncome.toFixed(2)}`;
 
-    const totalSpentYearAll = expenses.reduce((sum, e) => sum + e.amount, 0);
-    const netBalance = totalIncome - totalSpentYearAll;
-
+    const netBalance = totalIncome - totalSpent;
     const balanceElement = document.getElementById('filter-balance');
     balanceElement.innerText = `€ ${netBalance.toFixed(2)}`;
     balanceElement.style.color = netBalance >= 0 ? '#28a745' : '#dc3545';
@@ -298,7 +316,7 @@ function renderResults(list, chkPaolo, chkElena) {
     catContainer.innerHTML = '';
     
     if (Object.keys(catTotals).length === 0) {
-        catContainer.innerHTML = '<div style="font-size: 12px; color: #888; padding: 6px;">Nessuna spesa trovata.</div>';
+        catContainer.innerHTML = '<div style="font-size: 13px; color: #888; padding: 6px;">Nessuna spesa trovata.</div>';
     } else {
         const sortedCategories = Object.keys(catTotals).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
         sortedCategories.forEach(cat => {
@@ -316,17 +334,19 @@ function renderResults(list, chkPaolo, chkElena) {
     listContainer.innerHTML = '';
 
     if (list.length === 0) {
-        listContainer.innerHTML = '<div style="font-size: 12px; color: #888; text-align: center; padding: 10px;">Nessun dettaglio spesa trovato.</div>';
+        listContainer.innerHTML = '<div style="font-size: 13px; color: #888; text-align: center; padding: 10px;">Nessun dettaglio spesa trovato.</div>';
         return;
     }
 
-    list.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
+    const bothAccounts = chkPaolo && chkElena;
+    list.sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date)).forEach(exp => {
         const dateEu = formatDateToEu(exp.date);
+        const ownerBadge = bothAccounts ? ` • ${exp.owner === 'elena' ? 'Elena' : 'Paolo'}` : '';
         listContainer.innerHTML += `
             <div class="expense-item">
                 <div class="item-info">
                     <span class="item-title">${exp.category || "Altro"}</span>
-                    <span class="item-sub">${dateEu}</span>
+                    <span class="item-sub">${dateEu}${ownerBadge}</span>
                 </div>
                 <div class="item-actions">
                     <strong style="margin-right:8px;">€ ${parseFloat(exp.amount).toFixed(2)}</strong>
@@ -350,7 +370,7 @@ window.deleteExpenseFromHistory = async (id) => {
     if (confirm("Vuoi cancellare questa spesa?")) {
         try {
             await deleteDoc(doc(db, "spese", id));
-            await loadConfigAndExpenses();
+            await loadAllConfigsAndExpenses();
         } catch (err) {
             alert("Errore durante l'eliminazione: " + err.message);
         }
