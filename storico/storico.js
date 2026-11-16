@@ -46,6 +46,13 @@ flatpickr("#date-range-picker", {
     }
 });
 
+// Permette alla cornice principale di aggiornare i dati ogni volta che apri lo Storico
+window.refreshStoricoData = async () => {
+    if (currentUser) {
+        await loadAllConfigsAndExpenses();
+    }
+};
+
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
@@ -56,8 +63,6 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('chk-user2').checked = isUserElena;
 
         await loadAllConfigsAndExpenses();
-    } else {
-        window.location.href = "../index.html";
     }
 });
 
@@ -66,7 +71,6 @@ async function loadAllConfigsAndExpenses() {
     elenaConfig = { base: 0, extra: 0, uid: "" };
 
     try {
-        // Legge tutte le configurazioni salvate in "config" per associare Paolo ed Elena
         const configSnapshot = await getDocs(collection(db, "config"));
         configSnapshot.forEach((docSnap) => {
             if (docSnap.id === "impostazioni") return;
@@ -74,7 +78,6 @@ async function loadAllConfigsAndExpenses() {
             const baseVal = parseFloat((data.stipendio || 0).toString().replace(',', '.')) || 0;
             const extraVal = parseFloat((data.extra || 0).toString().replace(',', '.')) || 0;
 
-            // Riconosce l'account tramite le categorie dedicate o tramite l'utente attualmente loggato
             const isDocElena = Array.isArray(data.categorie_elena) || 
                                ((currentUser.email || "").toLowerCase().includes("ele") && docSnap.id === currentUser.uid);
 
@@ -268,15 +271,12 @@ function applyFilter() {
     const finalFiltered = allExpenses.filter(e => {
         if (!e.date) return false;
         
-        // Filtro account
         if (e.owner === "paolo" && !chkPaolo) return false;
         if (e.owner === "elena" && !chkElena) return false;
 
-        // Filtro data
         const d = parseLocalDate(e.date);
         if (d < from || d > to) return false;
 
-        // Filtro testo
         if (searchText) {
             const catMatch = (e.category || "").toLowerCase().includes(searchText);
             const amountMatch = e.amount.toFixed(2).includes(searchText) || e.amount.toString().includes(searchText);
@@ -363,7 +363,13 @@ window.editExpenseRedirect = (id, amount, date, category) => {
     localStorage.setItem('edit_amount', amount);
     localStorage.setItem('edit_date', date);
     localStorage.setItem('edit_category', category);
-    window.location.href = "../index.html";
+    
+    // Avvisa la cornice principale di tornare sulla Dashboard per modificare la spesa
+    if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'EDIT_EXPENSE_FROM_HISTORY' }, '*');
+    } else {
+        window.location.href = "../index.html";
+    }
 };
 
 window.deleteExpenseFromHistory = async (id) => {
