@@ -101,7 +101,7 @@ header h1 {
 
 .metric-grid {
     display: flex;
-    gap: 10px;
+    gap: 8px;
 }
 
 .metric-box-row {
@@ -109,29 +109,33 @@ header h1 {
     background-color: #f8f9fa;
     border: 1px solid #e9ecef;
     border-radius: 6px;
-    padding: 12px 10px;
+    padding: 12px 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
+    min-width: 0;
 }
 
 .metric-label {
-    font-size: 13px;
+    font-size: 12px;
     color: #495057;
     font-weight: 600;
+    white-space: nowrap;
 }
 
 .income-amount {
-    font-size: 17px;
+    font-size: 15px;
     font-weight: bold;
     color: #28a745;
+    white-space: nowrap;
 }
 
 .expense-amount {
-    font-size: 17px;
+    font-size: 15px;
     font-weight: bold;
     color: #dc3545;
+    white-space: nowrap;
 }
 
 #search-dropdown {
