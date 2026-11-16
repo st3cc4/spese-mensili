@@ -1,4 +1,4 @@
-import { auth, db, onAuthStateChanged, collection, getDocs, deleteDoc, doc } from "../firebase-config.js";
+import { auth, db, signOut, onAuthStateChanged, collection, getDocs, deleteDoc, doc } from "../firebase-config.js";
 
 let currentUser = null;
 let allExpenses = [];
@@ -45,6 +45,14 @@ flatpickr("#date-range-picker", {
         }
     }
 });
+
+// Pulsante Esci anche dallo Storico (uguale alla Dashboard)
+const logoutBtnStorico = document.getElementById('logout-btn-storico');
+if (logoutBtnStorico) {
+    logoutBtnStorico.addEventListener('click', () => {
+        signOut(auth);
+    });
+}
 
 // Permette alla cornice principale di aggiornare i dati ogni volta che apri lo Storico
 window.refreshStoricoData = async () => {
@@ -364,7 +372,6 @@ window.editExpenseRedirect = (id, amount, date, category) => {
     localStorage.setItem('edit_date', date);
     localStorage.setItem('edit_category', category);
     
-    // Avvisa la cornice principale di tornare sulla Dashboard per modificare la spesa
     if (window.parent && window.parent !== window) {
         window.parent.postMessage({ type: 'EDIT_EXPENSE_FROM_HISTORY' }, '*');
     } else {
