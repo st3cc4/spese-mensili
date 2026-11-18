@@ -27,7 +27,6 @@ function getCategoryFieldKey() {
     return isUserElena(currentUser) ? "categorie_elena" : "categorie_paolo";
 }
 
-// Gestione scambio schermate sulla tela senza ricaricare la pagina
 function showDashboardView() {
     document.getElementById('view-dashboard').classList.remove('hidden');
     document.getElementById('view-storico').classList.add('hidden');
@@ -50,7 +49,6 @@ function showStoricoView() {
     btnDash.style.color = '#666';
     btnStorico.style.color = '#3b5998';
 
-    // Aggiorna i dati dentro lo storico quando si apre la scheda
     const frame = document.getElementById('storico-frame');
     if (frame && frame.contentWindow && typeof frame.contentWindow.refreshStoricoData === 'function') {
         frame.contentWindow.refreshStoricoData();
@@ -60,10 +58,13 @@ function showStoricoView() {
 document.getElementById('nav-btn-dashboard').addEventListener('click', showDashboardView);
 document.getElementById('nav-btn-storico').addEventListener('click', showStoricoView);
 
-// Ascolta il comando di modifica inviato dallo Storico
 window.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'EDIT_EXPENSE_FROM_HISTORY') {
-        showDashboardView();
+    if (event.data) {
+        if (event.data.type === 'EDIT_EXPENSE_FROM_HISTORY') {
+            showDashboardView();
+        } else if (event.data.type === 'LOGOUT_FROM_HISTORY') {
+            signOut(auth);
+        }
     }
 });
 
