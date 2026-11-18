@@ -348,15 +348,17 @@ async function loadExpenses() {
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const expUserId = data.userId || "";
+            const expOwner = data.owner || (expUserId === currentUser?.uid && elenaLogged ? "elena" : "paolo");
             
             const belongsToUser = (expUserId === currentUser.uid) || (!elenaLogged && expUserId === "");
 
-            if (belongsToUser) {
+            if (belongsToUser || data.userId) {
                 expenses.push({ 
                     id: docSnap.id, 
                     amount: parseFloat((data.importo || data.amount || 0).toString().replace(',', '.')) || 0,
                     date: data.data || data.date,
-                    category: data.categoria || data.category 
+                    category: data.categoria || data.category,
+                    owner: expOwner
                 });
             }
         });
@@ -421,11 +423,13 @@ if (expenseForm) {
             setupCategoryAutocomplete();
         }
 
+        const isElena = isUserElena(currentUser);
         const data = { 
             importo: amount, 
             data: date, 
             categoria: formattedCategory, 
             userId: currentUser.uid, 
+            owner: isElena ? "elena" : "paolo",
             timestamp: new Date() 
         };
 
