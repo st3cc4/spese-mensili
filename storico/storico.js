@@ -80,7 +80,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const logoutBtnStorico = document.getElementById('logout-btn-storico');
     if (logoutBtnStorico) {
-        logoutBtnStorico.addEventListener('click', () => signOut(auth));
+        logoutBtnStorico.addEventListener('click', async () => {
+            try {
+                window.parent.postMessage({ type: 'LOGOUT_FROM_HISTORY' }, '*');
+                await signOut(auth);
+            } catch (e) {
+                console.error("Errore durante il logout:", e);
+            }
+        });
     }
 });
 
@@ -116,9 +123,11 @@ onAuthStateChanged(auth, async (user) => {
         currentUser = user;
         const chk1 = document.getElementById('chk-user1');
         const chk2 = document.getElementById('chk-user2');
-        if (chk1 && chk2 && !chk1.checked && !chk2.checked) {
-            chk1.checked = true;
-            chk2.checked = true;
+        
+        if (chk1 && chk2) {
+            const isElena = isUserElenaByEmail(user.email);
+            chk1.checked = !isElena;
+            chk2.checked = isElena;
         }
         await loadStoricoData();
     } else {
@@ -258,7 +267,7 @@ function applyFilters() {
         return;
     }
 
-    filtered.sort((a, b) => new Date(b.date) - new Date(b.date));
+    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     filtered.forEach(exp => {
         const parts = exp.date.split('-');
