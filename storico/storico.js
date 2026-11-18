@@ -1,104 +1,143 @@
-import { auth, db, signOut, onAuthStateChanged, collection, getDocs, deleteDoc, doc } from "../firebase-config.js";
+import { 
+    auth, db, onAuthStateChanged, signOut, 
+    collection, getDocs, doc, deleteDoc 
+} from "../firebase-config.js";
 
-let currentUser = null;
 let allExpenses = [];
-let paoloConfig = { base: 0, extra: 0, uid: "" };
-let elenaConfig = { base: 0, extra: 0, uid: "" };
-let selectedCustomFrom = null;
-let selectedCustomTo = null;
+let currentUser = null;
 
-function getISOWeekString(date) {
-    const target = new Date(date.valueOf());
-    const dayNr = (date.getDay() + 6) % 7;
-    target.setDate(target.getDate() - dayNr + 3);
-    const firstThursday = target.valueOf();
-    target.setMonth(0, 1);
-    if (target.getDay() !== 4) {
-        target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
-    }
-    const weekNumber = 1 + Math.round((firstThursday - target.valueOf()) / 604800000);
-    const year = target.getFullYear();
-    const weekStr = String(weekNumber).padStart(2, '0');
-    return `${year}-W${weekStr}`;
-}
-
-const now = new Date();
-const curYear = now.getFullYear();
-const curMonth = String(now.getMonth() + 1).padStart(2, '0');
-const curDay = String(now.getDate()).padStart(2, '0');
-
-document.getElementById('select-day').value = `${curYear}-${curMonth}-${curDay}`;
-document.getElementById('select-month').value = `${curYear}-${curMonth}`;
-document.getElementById('select-week').value = getISOWeekString(now);
-
-flatpickr("#date-range-picker", {
-    mode: "range",
-    locale: "it",
-    dateFormat: "Y-m-d",
-    altInput: true,
-    altFormat: "d/m/Y",
-    onChange: function(selectedDates) {
-        if (selectedDates.length === 2) {
-            selectedCustomFrom = selectedDates[0];
-            selectedCustomTo = selectedDates[1];
-            applyFilter();
-        }
+// Ascolta i messaggi inviati dalla Dashboard principale
+window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'REFRESH_STORICO') {
+        loadStoricoData();
     }
 });
 
-// Pulsante Esci anche dallo Storico (uguale alla Dashboard)
-const logoutBtnStorico = document.getElementById('logout-btn-storico');
-if (logoutBtnStorico) {
-    logoutBtnStorico.addEventListener('click', () => {
-        signOut(auth);
+// Funzione richiamata dalla Dashboard quando si apre la scheda Storico
+window.refreshStoricoData = function() {
+    loadStoricoData();
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Inizializza i filtri al mese corrente
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    
+    const monthInput = document.getElementById('select-month');
+    if (monthInput) {
+        monthInput.value = `${year}-${month}`;
+    }
+
+    // Imposta anno corrente nel selettore anno
+    const yearSelect = document.getElementById('select-year');
+    if (yearSelect) {
+        yearSelect.innerHTML = '';
+        for (let y = year; y >= 2024; y--) {
+            const opt = document.createElement('option');
+            opt.value = y;
+            opt.textContent = y;
+            if (y === year) opt.selected = true;
+            yearSelect.appendChild(opt);
+        }
+    }
+
+    // Imposta giorno corrente
+    const dayInput = document.getElementById('select-day');
+    if (dayInput) {
+        const d = String(now.getDate()).padStart(2, '0');
+        dayInput.value = `${year}-${month}-${d}`;
+    }
+
+    // Inizializza flatpickr per intervallo personalizzato
+    if (typeof flatpickr !== 'undefined') {
+        flatpickr("#date-range-picker", {
+            mode: "range",
+            dateFormat: "Y-m-d",
+            locale: "it",
+            onChange: function(selectedDates) {
+                if (selectedDates.length === 2) {
+                    applyFilters();
+                }
+            }
+        });
+    }
+
+    // Ascoltatori per i cambi tipo di filtro
+    const filterType = document.getElementById('filter-type');
+    if (filterType) {
+        filterType.addEventListener('change', () => {
+            updateFilterVisibility();
+            applyFilters();
+        });
+    }
+
+    // Ascoltatori per tutti i campi di input e filtri
+    const inputsToWatch = [
+        'search-input', 'filter-type', 'select-day', 'select-month', 
+        'select-week', 'select-year', 'chk-user1', 'chk-user2'
+    ];
+    
+    inputsToWatch.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', applyFilters);
+            el.addEventListener('change', applyFilters);
+        }
     });
+
+    // Logout dallo storico
+    const logoutBtnStorico = document.getElementById('logout-btn-storico');
+    if (logoutBtnStorico) {
+        logoutBtnStorico.addEventListener('click', () => signOut(auth));
+    }
+});
+
+function updateFilterVisibility() {
+    const type = document.getElementById('filter-type').value;
+    
+    document.getElementById('selector-day-container').classList.add('hidden');
+    document.getElementById('selector-week-container').classList.add('hidden');
+    document.getElementById('selector-month-container').classList.add('hidden');
+    document.getElementById('selector-year-container').classList.add('hidden');
+    document.getElementById('custom-date-container').classList.add('hidden');
+
+    if (type === 'day') {
+        document.getElementById('selector-day-container').classList.remove('hidden');
+    } else if (type === 'week') {
+        document.getElementById('selector-week-container').classList.remove('hidden');
+    } else if (type === 'month') {
+        document.getElementById('selector-month-container').classList.remove('hidden');
+    } else if (type === 'year') {
+        document.getElementById('selector-year-container').classList.remove('hidden');
+    } else if (type === 'custom') {
+        document.getElementById('custom-date-container').classList.remove('hidden');
+    }
 }
 
-// Permette alla cornice principale di aggiornare i dati ogni volta che apri lo Storico
-window.refreshStoricoData = async () => {
-    if (currentUser) {
-        await loadAllConfigsAndExpenses();
-    }
-};
+function isUserElenaByEmail(email) {
+    if (!email) return false;
+    return email.toLowerCase().includes("ele");
+}
 
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
-        const email = (user.email || "").toLowerCase();
-        const isUserElena = email.includes("ele");
-        
-        document.getElementById('chk-user1').checked = !isUserElena;
-        document.getElementById('chk-user2').checked = isUserElena;
-
-        await loadAllConfigsAndExpenses();
+        const chk1 = document.getElementById('chk-user1');
+        const chk2 = document.getElementById('chk-user2');
+        if (chk1 && chk2 && !chk1.checked && !chk2.checked) {
+            chk1.checked = true;
+            chk2.checked = true;
+        }
+        await loadStoricoData();
+    } else {
+        currentUser = null;
+        allExpenses = [];
+        applyFilters();
     }
 });
 
-async function loadAllConfigsAndExpenses() {
-    paoloConfig = { base: 0, extra: 0, uid: "" };
-    elenaConfig = { base: 0, extra: 0, uid: "" };
-
-    try {
-        const configSnapshot = await getDocs(collection(db, "config"));
-        configSnapshot.forEach((docSnap) => {
-            if (docSnap.id === "impostazioni") return;
-            const data = docSnap.data();
-            const baseVal = parseFloat((data.stipendio || 0).toString().replace(',', '.')) || 0;
-            const extraVal = parseFloat((data.extra || 0).toString().replace(',', '.')) || 0;
-
-            const isDocElena = Array.isArray(data.categorie_elena) || 
-                               ((currentUser.email || "").toLowerCase().includes("ele") && docSnap.id === currentUser.uid);
-
-            if (isDocElena) {
-                elenaConfig = { base: baseVal, extra: extraVal, uid: docSnap.id };
-            } else {
-                paoloConfig = { base: baseVal, extra: extraVal, uid: docSnap.id };
-            }
-        });
-    } catch (e) {
-        console.error("Errore caricamento configurazioni:", e);
-    }
-
+async function loadStoricoData() {
     try {
         const querySnapshot = await getDocs(collection(db, "spese"));
         allExpenses = [];
@@ -106,286 +145,167 @@ async function loadAllConfigsAndExpenses() {
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const expUserId = data.userId || "";
-            const owner = (elenaConfig.uid && expUserId === elenaConfig.uid) ? "elena" : "paolo";
+            
+            let owner = "paolo";
+            if (data.owner) {
+                owner = data.owner.toLowerCase();
+            } else if (expUserId) {
+                if (expUserId === currentUser?.uid && isUserElenaByEmail(currentUser?.email)) {
+                    owner = "elena";
+                }
+            }
 
             allExpenses.push({ 
                 id: docSnap.id, 
                 amount: parseFloat((data.importo || data.amount || 0).toString().replace(',', '.')) || 0,
-                date: data.data || data.date,
-                category: data.categoria || data.category,
+                date: data.data || data.date || "",
+                category: data.categoria || data.category || "Altro",
                 userId: expUserId,
                 owner: owner
             });
         });
+
+        applyFilters();
     } catch (e) {
-        console.error("Errore caricamento spese:", e);
+        console.error("Errore caricamento dati storico:", e);
     }
-
-    populateYearsDropdown();
-    setupSearchAutocomplete();
-    applyFilter();
 }
 
-function populateYearsDropdown() {
-    const yearsSet = new Set();
-    allExpenses.forEach(e => {
-        if (e.date) {
-            const y = new Date(e.date).getFullYear();
-            if (!isNaN(y)) yearsSet.add(y);
-        }
-    });
-    yearsSet.add(curYear);
+function applyFilters() {
+    const showPaolo = document.getElementById('chk-user1').checked;
+    const showElena = document.getElementById('chk-user2').checked;
+    const filterType = document.getElementById('filter-type').value;
+    const searchText = (document.getElementById('search-input').value || "").toLowerCase().trim();
 
-    const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
-    const yearSelect = document.getElementById('select-year');
-    yearSelect.innerHTML = '';
-    sortedYears.forEach(y => {
-        yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
-    });
-}
-
-function setupSearchAutocomplete() {
-    const searchInput = document.getElementById('search-input');
-    const searchDropdown = document.getElementById('search-dropdown');
-    if (!searchInput || !searchDropdown) return;
-
-    const suggestionsSet = new Set();
-    allExpenses.forEach(e => {
-        if (e.category) suggestionsSet.add(e.category);
-    });
-    const suggestions = Array.from(suggestionsSet).sort();
-
-    function renderSearchDropdown(list) {
-        searchDropdown.innerHTML = '';
-        if (list.length === 0) {
-            searchDropdown.classList.add('hidden');
-            return;
-        }
-        list.forEach(itemText => {
-            const item = document.createElement('div');
-            item.className = 'search-suggestion-item';
-            item.innerText = itemText;
-            item.onclick = () => {
-                searchInput.value = itemText;
-                searchDropdown.classList.add('hidden');
-                applyFilter();
-            };
-            searchDropdown.appendChild(item);
-        });
-        searchDropdown.classList.remove('hidden');
-    }
-
-    searchInput.onfocus = () => renderSearchDropdown(suggestions);
-
-    searchInput.oninput = (e) => {
-        const val = e.target.value.toLowerCase();
-        const filtered = suggestions.filter(s => s.toLowerCase().includes(val));
-        renderSearchDropdown(filtered);
-        applyFilter();
-    };
-
-    document.onclick = (e) => {
-        if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
-            searchDropdown.classList.add('hidden');
-        }
-    };
-}
-
-document.getElementById('filter-type').addEventListener('change', (e) => {
-    const val = e.target.value;
-    document.getElementById('selector-day-container').classList.add('hidden');
-    document.getElementById('selector-month-container').classList.add('hidden');
-    document.getElementById('selector-week-container').classList.add('hidden');
-    document.getElementById('selector-year-container').classList.add('hidden');
-    document.getElementById('custom-date-container').classList.add('hidden');
-
-    if (val === 'day') {
-        document.getElementById('selector-day-container').classList.remove('hidden');
-    } else if (val === 'month') {
-        document.getElementById('selector-month-container').classList.remove('hidden');
-    } else if (val === 'week') {
-        document.getElementById('selector-week-container').classList.remove('hidden');
-    } else if (val === 'year') {
-        document.getElementById('selector-year-container').classList.remove('hidden');
-    } else if (val === 'custom') {
-        document.getElementById('custom-date-container').classList.remove('hidden');
-    }
-    applyFilter();
-});
-
-document.getElementById('select-day').addEventListener('change', applyFilter);
-document.getElementById('select-month').addEventListener('change', applyFilter);
-document.getElementById('select-week').addEventListener('input', applyFilter);
-document.getElementById('select-year').addEventListener('change', applyFilter);
-document.getElementById('chk-user1').addEventListener('change', applyFilter);
-document.getElementById('chk-user2').addEventListener('change', applyFilter);
-
-function formatDateToEu(dateStr) {
-    if (!dateStr) return "";
-    const parts = dateStr.split('-');
-    if (parts.length === 3) {
-        return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-    return dateStr;
-}
-
-function parseLocalDate(dateStr) {
-    const parts = dateStr.split('-');
-    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-}
-
-function applyFilter() {
-    const chkPaolo = document.getElementById('chk-user1').checked;
-    const chkElena = document.getElementById('chk-user2').checked;
-    const type = document.getElementById('filter-type').value;
-    const searchText = document.getElementById('search-input').value.toLowerCase().trim();
-    let from, to;
-
-    if (type === 'day') {
-        const dayVal = document.getElementById('select-day').value;
-        if (!dayVal) return;
-        from = parseLocalDate(dayVal); from.setHours(0, 0, 0, 0);
-        to = parseLocalDate(dayVal); to.setHours(23, 59, 59, 999);
-    } else if (type === 'month') {
-        const monthVal = document.getElementById('select-month').value;
-        if (!monthVal) return;
-        const [y, m] = monthVal.split('-');
-        from = new Date(parseInt(y), parseInt(m) - 1, 1, 0, 0, 0, 0);
-        to = new Date(parseInt(y), parseInt(m), 0, 23, 59, 59, 999);
-    } else if (type === 'week') {
-        const weekVal = document.getElementById('select-week').value;
-        if (!weekVal) return;
-        const [yearStr, weekStr] = weekVal.split('-W');
-        const yearNum = parseInt(yearStr);
-        const weekNum = parseInt(weekStr);
-        const simple = new Date(yearNum, 0, 1 + (weekNum - 1) * 7);
-        const dow = simple.getDay();
-        const ISOweekStart = simple;
-        if (dow <= 4) ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
-        else ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
-        from = new Date(ISOweekStart); from.setHours(0, 0, 0, 0);
-        to = new Date(from); to.setDate(from.getDate() + 6); to.setHours(23, 59, 59, 999);
-    } else if (type === 'year') {
-        const yearNum = parseInt(document.getElementById('select-year').value);
-        if (!yearNum) return;
-        from = new Date(yearNum, 0, 1, 0, 0, 0, 0);
-        to = new Date(yearNum, 11, 31, 23, 59, 59, 999);
-    } else if (type === 'custom') {
-        if (!selectedCustomFrom || !selectedCustomTo) return;
-        from = new Date(selectedCustomFrom); from.setHours(0, 0, 0, 0);
-        to = new Date(selectedCustomTo); to.setHours(23, 59, 59, 999);
-    }
-
-    const finalFiltered = allExpenses.filter(e => {
-        if (!e.date) return false;
-        
-        if (e.owner === "paolo" && !chkPaolo) return false;
-        if (e.owner === "elena" && !chkElena) return false;
-
-        const d = parseLocalDate(e.date);
-        if (d < from || d > to) return false;
+    let filtered = allExpenses.filter(exp => {
+        const matchesAccount = (exp.owner === 'elena' && showElena) || (exp.owner !== 'elena' && showPaolo);
+        if (!matchesAccount) return false;
 
         if (searchText) {
-            const catMatch = (e.category || "").toLowerCase().includes(searchText);
-            const amountMatch = e.amount.toFixed(2).includes(searchText) || e.amount.toString().includes(searchText);
-            if (!catMatch && !amountMatch) return false;
+            const matchCat = exp.category.toLowerCase().includes(searchText);
+            const matchAmount = exp.amount.toString().includes(searchText);
+            const matchDate = exp.date.includes(searchText);
+            if (!matchCat && !matchAmount && !matchDate) return false;
         }
         return true;
     });
 
-    renderResults(finalFiltered, chkPaolo, chkElena);
-}
+    filtered = filtered.filter(exp => {
+        if (!exp.date) return false;
+        const parts = exp.date.split('-');
+        if (parts.length !== 3) return false;
+        const expDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
 
-function renderResults(list, chkPaolo, chkElena) {
-    const totalSpent = list.reduce((sum, e) => sum + e.amount, 0);
-    document.getElementById('filter-total-val').innerText = `€ ${totalSpent.toFixed(2)}`;
-
-    let totalIncome = 0;
-    if (chkPaolo) {
-        totalIncome += (paoloConfig.base || 0) + (paoloConfig.extra || 0);
-    }
-    if (chkElena) {
-        totalIncome += (elenaConfig.base || 0) + (elenaConfig.extra || 0);
-    }
-    document.getElementById('filter-income-val').innerText = `€ ${totalIncome.toFixed(2)}`;
-
-    const netBalance = totalIncome - totalSpent;
-    const balanceElement = document.getElementById('filter-balance');
-    balanceElement.innerText = `€ ${netBalance.toFixed(2)}`;
-    balanceElement.style.color = netBalance >= 0 ? '#28a745' : '#dc3545';
-
-    const catTotals = {};
-    list.forEach(e => {
-        const cat = e.category || "Altro";
-        catTotals[cat] = (catTotals[cat] || 0) + e.amount;
+        if (filterType === 'day') {
+            const dayVal = document.getElementById('select-day').value;
+            return exp.date === dayVal;
+        } else if (filterType === 'month') {
+            const monthVal = document.getElementById('select-month').value;
+            if (!monthVal) return true;
+            const [selYear, selMonth] = monthVal.split('-');
+            return parts[0] === selYear && parts[1] === selMonth;
+        } else if (filterType === 'year') {
+            const yearVal = document.getElementById('select-year').value;
+            return parts[0] === yearVal;
+        } else if (filterType === 'custom') {
+            const rangePicker = document.getElementById('date-range-picker');
+            if (rangePicker && rangePicker._flatpickr) {
+                const dates = rangePicker._flatpickr.selectedDates;
+                if (dates.length === 2) {
+                    const start = new Date(dates[0]);
+                    start.setHours(0,0,0,0);
+                    const end = new Date(dates[1]);
+                    end.setHours(23,59,59,999);
+                    return expDate >= start && expDate <= end;
+                }
+            }
+        }
+        return true;
     });
 
-    const catContainer = document.getElementById('category-totals-list');
-    catContainer.innerHTML = '';
+    const totalExpenses = filtered.reduce((sum, e) => sum + e.amount, 0);
+    let totalIncome = 0;
+    if (showPaolo) totalIncome += 1500;
+    if (showElena) totalIncome += 1500;
+
+    const balance = totalIncome - totalExpenses;
+
+    document.getElementById('filter-total-val').innerText = `€ ${totalExpenses.toFixed(2)}`;
+    document.getElementById('filter-income-val').innerText = `€ ${totalIncome.toFixed(2)}`;
     
-    if (Object.keys(catTotals).length === 0) {
-        catContainer.innerHTML = '<div style="font-size: 13px; color: #888; padding: 6px;">Nessuna spesa trovata.</div>';
+    const balanceEl = document.getElementById('filter-balance');
+    balanceEl.innerText = `€ ${balance.toFixed(2)}`;
+    balanceEl.style.color = balance >= 0 ? '#28a745' : '#dc3545';
+
+    const categoryMap = {};
+    filtered.forEach(exp => {
+        categoryMap[exp.category] = (categoryMap[exp.category] || 0) + exp.amount;
+    });
+
+    const categoryListEl = document.getElementById('category-totals-list');
+    categoryListEl.innerHTML = '';
+    
+    const sortedCategories = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]);
+    if (sortedCategories.length === 0) {
+        categoryListEl.innerHTML = '<div style="font-size: 13px; color: #888; padding: 5px;">Nessuna spesa trovata per i filtri selezionati.</div>';
     } else {
-        const sortedCategories = Object.keys(catTotals).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
-        sortedCategories.forEach(cat => {
-            const sum = catTotals[cat];
-            catContainer.innerHTML += `
-                <div class="expense-item">
-                    <span class="item-title">${cat}</span>
-                    <strong>€ ${sum.toFixed(2)}</strong>
+        sortedCategories.forEach(([cat, amount]) => {
+            categoryListEl.innerHTML += `
+                <div class="metric-box-row" style="padding: 6px 10px; margin-bottom: 4px; background: #fff; border: 1px solid #ddd; border-radius: 4px;">
+                    <span style="font-size: 13px; font-weight: 500;">${cat}</span>
+                    <strong style="font-size: 13px;">€ ${amount.toFixed(2)}</strong>
                 </div>
             `;
         });
     }
 
-    const listContainer = document.getElementById('filtered-expenses-list');
-    listContainer.innerHTML = '';
+    const expensesListEl = document.getElementById('filtered-expenses-list');
+    expensesListEl.innerHTML = '';
 
-    if (list.length === 0) {
-        listContainer.innerHTML = '<div style="font-size: 13px; color: #888; text-align: center; padding: 10px;">Nessun dettaglio spesa trovato.</div>';
+    if (filtered.length === 0) {
+        expensesListEl.innerHTML = '<div style="font-size: 13px; color: #888; text-align: center; padding: 10px;">Nessun movimento trovato.</div>';
         return;
     }
 
-    const bothAccounts = chkPaolo && chkElena;
-    list.sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date)).forEach(exp => {
-        const dateEu = formatDateToEu(exp.date);
-        const ownerBadge = bothAccounts ? ` • ${exp.owner === 'elena' ? 'Elena' : 'Paolo'}` : '';
-        listContainer.innerHTML += `
-            <div class="expense-item">
+    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    filtered.forEach(exp => {
+        const parts = exp.date.split('-');
+        const dateEu = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : exp.date;
+        
+        expensesListEl.innerHTML += `
+            <div class="expense-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-bottom: 1px solid #eee;">
                 <div class="item-info">
-                    <span class="item-title">${exp.category || "Altro"}</span>
-                    <span class="item-sub">${dateEu}${ownerBadge}</span>
+                    <span class="item-title" style="font-weight: bold; font-size: 14px; display: block;">${exp.category}</span>
+                    <span class="item-sub" style="font-size: 12px; color: #666;">${dateEu} (${exp.owner.toUpperCase()})</span>
                 </div>
-                <div class="item-actions">
-                    <strong style="margin-right:8px;">€ ${parseFloat(exp.amount).toFixed(2)}</strong>
-                    <button class="btn-edit" onclick="editExpenseRedirect('${exp.id}', '${exp.amount}', '${exp.date}', '${exp.category}')">✏️</button>
-                    <button class="btn-danger" onclick="deleteExpenseFromHistory('${exp.id}')">🗑️</button>
+                <div class="item-actions" style="display: flex; align-items: center; gap: 6px;">
+                    <strong style="margin-right:6px; font-size: 14px; color: #dc3545;">€ ${exp.amount.toFixed(2)}</strong>
+                    <button class="btn-edit" onclick="window.editExpenseFromHistory('${exp.id}', ${exp.amount}, '${exp.date}', '${exp.category}')" style="background: #ffc107; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer;">✏️</button>
+                    <button class="btn-danger" onclick="window.deleteExpenseFromHistory('${exp.id}')" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer;">🗑️</button>
                 </div>
             </div>
         `;
     });
 }
 
-window.editExpenseRedirect = (id, amount, date, category) => {
+window.editExpenseFromHistory = function(id, amount, date, category) {
     localStorage.setItem('edit_id', id);
     localStorage.setItem('edit_amount', amount);
     localStorage.setItem('edit_date', date);
     localStorage.setItem('edit_category', category);
-    
-    if (window.parent && window.parent !== window) {
-        window.parent.postMessage({ type: 'EDIT_EXPENSE_FROM_HISTORY' }, '*');
-    } else {
-        window.location.href = "../index.html";
-    }
+
+    window.parent.postMessage({ type: 'EDIT_EXPENSE_FROM_HISTORY', id }, '*');
 };
 
-window.deleteExpenseFromHistory = async (id) => {
+window.deleteExpenseFromHistory = async function(id) {
     if (confirm("Vuoi cancellare questa spesa?")) {
         try {
             await deleteDoc(doc(db, "spese", id));
-            await loadAllConfigsAndExpenses();
-        } catch (err) {
-            alert("Errore durante l'eliminazione: " + err.message);
+            await loadStoricoData();
+        } catch (e) {
+            console.error("Errore durante la cancellazione:", e);
+            alert("Errore durante la cancellazione della spesa.");
         }
     }
 };
