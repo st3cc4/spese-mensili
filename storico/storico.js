@@ -6,20 +6,17 @@ import {
 let allExpenses = [];
 let currentUser = null;
 
-// Ascolta i messaggi inviati dalla Dashboard principale
 window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'REFRESH_STORICO') {
         loadStoricoData();
     }
 });
 
-// Funzione richiamata dalla Dashboard quando si apre la scheda Storico
 window.refreshStoricoData = function() {
     loadStoricoData();
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Inizializza i filtri al mese corrente
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -29,7 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
         monthInput.value = `${year}-${month}`;
     }
 
-    // Imposta anno corrente nel selettore anno
     const yearSelect = document.getElementById('select-year');
     if (yearSelect) {
         yearSelect.innerHTML = '';
@@ -42,14 +38,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Imposta giorno corrente
     const dayInput = document.getElementById('select-day');
     if (dayInput) {
         const d = String(now.getDate()).padStart(2, '0');
         dayInput.value = `${year}-${month}-${d}`;
     }
 
-    // Inizializza flatpickr per intervallo personalizzato
     if (typeof flatpickr !== 'undefined') {
         flatpickr("#date-range-picker", {
             mode: "range",
@@ -63,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Ascoltatori per i cambi tipo di filtro
     const filterType = document.getElementById('filter-type');
     if (filterType) {
         filterType.addEventListener('change', () => {
@@ -72,7 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Ascoltatori per tutti i campi di input e filtri
     const inputsToWatch = [
         'search-input', 'filter-type', 'select-day', 'select-month', 
         'select-week', 'select-year', 'chk-user1', 'chk-user2'
@@ -86,7 +78,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Logout dallo storico
     const logoutBtnStorico = document.getElementById('logout-btn-storico');
     if (logoutBtnStorico) {
         logoutBtnStorico.addEventListener('click', () => signOut(auth));
@@ -267,7 +258,7 @@ function applyFilters() {
         return;
     }
 
-    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    filtered.sort((a, b) => new Date(b.date) - new Date(b.date));
 
     filtered.forEach(exp => {
         const parts = exp.date.split('-');
