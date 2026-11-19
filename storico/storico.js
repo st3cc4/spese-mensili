@@ -29,6 +29,15 @@ let monthlyIncomeByOwner = {
     }
 };
 
+function getIsoWeekString(dateObj) {
+    const d = new Date(Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
 function applyAccountCheckboxForUser(email, uid, force = false) {
     const chk1 = document.getElementById('chk-user1'); // Paolo
     const chk2 = document.getElementById('chk-user2'); // Elena
@@ -87,6 +96,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const monthInput = document.getElementById('select-month');
     if (monthInput) {
         monthInput.value = `${year}-${month}`;
+    }
+
+    const weekInput = document.getElementById('select-week');
+    if (weekInput) {
+        weekInput.value = getIsoWeekString(now);
     }
 
     const yearSelect = document.getElementById('select-year');
@@ -192,17 +206,46 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 function resolveExpenseOwner(data, user) {
-    const rawOwner = (data.owner || data.utente || data.nome || data.account || data.user || "").toString().toLowerCase().trim();
-    if (rawOwner.includes("ele")) return "elena";
-    if (rawOwner.includes("pao")) return "paolo";
+    const possibleFields = [
+        data.owner, data.utente, data.nome, data.account, data.user,
+        data.userEmail, data.email, data.autore, data.creatoDa
+    ];
 
-    const expUserId = data.userId || "";
+    for (const val of possibleFields) {
+        if (typeof val === "string") {
+            const lower = val.toLowerCase().trim();
+            if (lower.includes("ele")) return "elena";
+            if (lower.includes("pao")) return "paolo";
+        }
+    }
+
+    const expUserId = (data.userId || "").toString().trim();
     const emailToCheck = user?.email || currentUserEmail;
-    if (user && expUserId === user.uid) {
+    if (user && expUserId && expUserId === user.uid) {
         return isUserElenaByEmail(emailToCheck) ? "elena" : "paolo";
     }
 
     return "paolo";
+}
+
+function normalizeDateString(rawDate) {
+    if (!rawDate) return "";
+    if (typeof rawDate === "string") {
+        const trimmed = rawDate.trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+            return trimmed.slice(0, 10);
+        }
+        const euMatch = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (euMatch) {
+            return `${euMatch[3]}-${euMatch[2]}-${euMatch[1]}`;
+        }
+        return trimmed;
+    }
+    if (rawDate && typeof rawDate.toDate === "function") {
+        const d = rawDate.toDate();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    return "";
 }
 
 async function loadConfigSalaries() {
@@ -247,6 +290,10 @@ function getIncomeForSelection(owner, filterType) {
         const dayVal = document.getElementById('select-day').value || "";
         const ym = dayVal.slice(0, 7);
         return parseFloat(map[ym] || 0);
+    } else if (filterType === 'week') {
+        const weekVal = document.getElementById('select-week').value || "";
+        const ym = weekVal.slice(0, 7);
+        return parseFloat(map[ym] || 0);
     } else if (filterType === 'custom') {
         const rangePicker = document.getElementById('date-range-picker');
         if (rangePicker && rangePicker._flatpickr && rangePicker._flatpickr.selectedDates.length === 2) {
@@ -284,11 +331,12 @@ async function loadStoricoData() {
             const data = docSnap.data();
             const expUserId = data.userId || "";
             const owner = resolveExpenseOwner(data, currentUser);
+            const cleanDate = normalizeDateString(data.data || data.date || "");
 
             allExpenses.push({ 
                 id: docSnap.id, 
                 amount: parseFloat((data.importo || data.amount || 0).toString().replace(',', '.')) || 0,
-                date: data.data || data.date || "",
+                date: cleanDate,
                 category: data.categoria || data.category || "Altro",
                 userId: expUserId,
                 owner: owner
@@ -331,6 +379,10 @@ function applyFilters() {
         if (filterType === 'day') {
             const dayVal = document.getElementById('select-day').value;
             return exp.date === dayVal;
+        } else if (filterType === 'week') {
+            const weekVal = document.getElementById('select-week').value;
+            if (!weekVal) return true;
+            return getIsoWeekString(expDate) === weekVal;
         } else if (filterType === 'month') {
             const monthVal = document.getElementById('select-month').value;
             if (!monthVal) return true;
