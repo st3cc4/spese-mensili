@@ -80,6 +80,13 @@ function notifyStoricoActiveUser() {
     }
 }
 
+function refreshStoricoFrame() {
+    const frame = document.getElementById('storico-frame');
+    if (frame && frame.contentWindow && typeof frame.contentWindow.refreshStoricoData === 'function') {
+        frame.contentWindow.refreshStoricoData();
+    }
+}
+
 function showDashboardView() {
     document.getElementById('view-dashboard').classList.remove('hidden');
     document.getElementById('view-storico').classList.add('hidden');
@@ -103,11 +110,7 @@ function showStoricoView() {
     btnStorico.style.color = '#3b5998';
 
     notifyStoricoActiveUser();
-
-    const frame = document.getElementById('storico-frame');
-    if (frame && frame.contentWindow && typeof frame.contentWindow.refreshStoricoData === 'function') {
-        frame.contentWindow.refreshStoricoData();
-    }
+    refreshStoricoFrame();
 }
 
 document.getElementById('nav-btn-dashboard').addEventListener('click', showDashboardView);
@@ -371,11 +374,7 @@ if (saveSalaryModalBtn) {
         salaryModal.classList.add('hidden');
         alert(`Dati stipendio ed extra per ${currentYearMonth} salvati su Firestore!`);
         calculateDashboard();
-
-        const frame = document.getElementById('storico-frame');
-        if (frame && frame.contentWindow && typeof frame.contentWindow.refreshStoricoData === 'function') {
-            frame.contentWindow.refreshStoricoData();
-        }
+        refreshStoricoFrame();
     });
 }
 
@@ -477,6 +476,196 @@ async function saveCategoriesToFirebase() {
     await setDoc(docRef, currentData);
 }
 
+async function saveExpenseRecord({ id = "", amount, date, rawCategory }) {
+    if (!currentUser) {
+        alert("Devi effettuare l'accesso per salvare una spesa.");
+        return;
+    }
+
+    const parsedAmount = parseFloat((amount || 0).toString().replace(',', '.')) || 0;
+    const cleanDate = date || todayStr;
+    const formattedCategory = formatCategoryName(rawCategory);
+
+    if (!formattedCategory) {
+        alert("Specifica una categoria valida.");
+        return;
+    }
+
+    if (!categories.includes(formattedCategory)) {
+        categories.push(formattedCategory);
+        categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
+        await saveCategoriesToFirebase();
+        setupCategoryAutocomplete();
+    }
+
+    const isElena = isUserElena(currentUser);
+    const ownerName = isElena ? "elena" : "paolo";
+    const data = { 
+        importo: parsedAmount, 
+        data: cleanDate, 
+        categoria: formattedCategory, 
+        userId: currentUser.uid, 
+        owner: ownerName,
+        utente: isElena ? "Elena" : "Paolo",
+        timestamp: new Date() 
+    };
+
+    if (id) {
+        await updateDoc(doc(db, "spese", id), data);
+    } else {
+        await addDoc(collection(db, "spese"), data);
+    }
+
+    resetForm();
+    await loadExpenses();
+    refreshStoricoFrame();
+}
+
+// Parsing frasi vocali es. "1.20 Caffè", "Caffè 1.20", "8 euro Action", "Action 8 euro"
+function parseVoiceExpenseTranscript(transcript) {
+    if (!transcript) return null;
+
+    let text = transcript
+        .toLowerCase()
+        .replace(/\beuro\b|\beuri\b/gi, " ")
+        .replace(/\bpiù\b|\bpiu\b/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    // Gestisce espressioni tipo "1 euro e 20" -> "1.20"
+    text = text.replace(/(\d+)\s+e\s+(\d{1,2})\b/g, "$1.$2");
+
+    // Cerca numeri decimali o interi (con punto o virgola)
+    const numberMatches = [...text.matchAll(/\d+(?:[.,]\d+)?/g)];
+    if (numberMatches.length === 0) return null;
+
+    // Prende il primo importo riconosciuto (o somma se ci sono più numeri separati da spazio)
+    let amount = 0;
+    if (numberMatches.length > 1) {
+        // Se la frase sembra "1 e 20" o "8 e 50" già normalizzata, numberMatches ha 1 elemento;
+        // se ci sono due numeri distinti li sommiamo, altrimenti prendiamo il primo.
+        amount = numberMatches.reduce((acc, m) => acc + (parseFloat(m[0].replace(',', '.')) || 0), 0);
+    } else {
+        amount = parseFloat(numberMatches[0][0].replace(',', '.')) || 0;
+    }
+
+    if (amount <= 0) return null;
+
+    // Rimuove i numeri per estrarre la categoria
+    let categoryPart = text
+        .replace(/\d+(?:[.,]\d+)?/g, " ")
+        .replace(/\be\b/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    if (!categoryPart) return null;
+
+    const formattedCategory = formatCategoryName(categoryPart);
+    return { amount, category: formattedCategory };
+}
+
+function setupVoiceExpenseRecognition() {
+    const voiceBtn = document.getElementById('voice-expense-btn');
+    const statusEl = document.getElementById('voice-status');
+    if (!voiceBtn || !statusEl) return;
+
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
+        voiceBtn.addEventListener('click', () => {
+            statusEl.classList.remove('hidden');
+            statusEl.style.color = '#dc3545';
+            statusEl.innerText = "Il riconoscimento vocale non è supportato su questo browser.";
+        });
+        return;
+    }
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = 'it-IT';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    let isListening = false;
+
+    voiceBtn.addEventListener('click', () => {
+        if (!currentUser) {
+            alert("Effettua prima l'accesso.");
+            return;
+        }
+        if (isListening) {
+            recognition.stop();
+            return;
+        }
+        try {
+            recognition.start();
+        } catch (err) {
+            console.error("Errore avvio riconoscimento vocale:", err);
+        }
+    });
+
+    recognition.onstart = () => {
+        isListening = true;
+        voiceBtn.classList.add('listening');
+        voiceBtn.innerText = "⏹️ Ascolto...";
+        statusEl.classList.remove('hidden');
+        statusEl.style.color = '#3b5998';
+        statusEl.innerText = 'Di\' ad esempio: "1.20 Caffè" oppure "8 euro Action"...';
+    };
+
+    recognition.onresult = async (event) => {
+        const transcript = event.results[0][0].transcript || "";
+        statusEl.style.color = '#3b5998';
+        statusEl.innerText = `Riconosciuto: "${transcript}"`;
+
+        const parsed = parseVoiceExpenseTranscript(transcript);
+        if (!parsed) {
+            statusEl.style.color = '#dc3545';
+            statusEl.innerText = `Non sono riuscito a capire importo e categoria da "${transcript}". Riprova.`;
+            return;
+        }
+
+        document.getElementById('expense-amount').value = parsed.amount.toFixed(2);
+        document.getElementById('expense-date').value = todayStr;
+        document.getElementById('expense-category').value = parsed.category;
+
+        try {
+            await saveExpenseRecord({
+                id: "",
+                amount: parsed.amount,
+                date: todayStr,
+                rawCategory: parsed.category
+            });
+            const ownerLabel = isUserElena(currentUser) ? "Elena" : "Paolo";
+            statusEl.style.color = '#28a745';
+            statusEl.innerText = `Salvata spesa di € ${parsed.amount.toFixed(2)} (${parsed.category}) per ${ownerLabel}!`;
+        } catch (err) {
+            console.error("Errore salvataggio spesa vocale:", err);
+            statusEl.style.color = '#dc3545';
+            statusEl.innerText = "Errore durante il salvataggio della spesa vocale.";
+        }
+    };
+
+    recognition.onerror = (event) => {
+        console.error("Errore SpeechRecognition:", event.error);
+        statusEl.classList.remove('hidden');
+        statusEl.style.color = '#dc3545';
+        if (event.error === 'not-allowed') {
+            statusEl.innerText = "Permesso microfono negato. Controlla le impostazioni del browser.";
+        } else if (event.error === 'no-speech') {
+            statusEl.innerText = "Non ho sentito nulla, riprova.";
+        } else {
+            statusEl.innerText = "Errore riconoscimento vocale: " + event.error;
+        }
+    };
+
+    recognition.onend = () => {
+        isListening = false;
+        voiceBtn.classList.remove('listening');
+        voiceBtn.innerText = "🎤 Voce";
+    };
+}
+
+setupVoiceExpenseRecognition();
+
 async function loadExpenses() {
     try {
         const q = collection(db, "spese");
@@ -544,45 +733,16 @@ if (expenseForm) {
     expenseForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('edit-expense-id').value;
-        const amountInput = document.getElementById('expense-amount').value.toString().replace(',', '.');
-        const amount = parseFloat(amountInput) || 0;
+        const amountInput = document.getElementById('expense-amount').value;
         const date = document.getElementById('expense-date').value;
         const rawCategory = document.getElementById('expense-category').value.trim();
 
-        if (!rawCategory) {
-            alert("Seleziona una categoria valida.");
-            return;
-        }
-
-        const formattedCategory = formatCategoryName(rawCategory);
-
-        if (!categories.includes(formattedCategory)) {
-            categories.push(formattedCategory);
-            categories.sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
-            await saveCategoriesToFirebase();
-            setupCategoryAutocomplete();
-        }
-
-        const isElena = isUserElena(currentUser);
-        const ownerName = isElena ? "elena" : "paolo";
-        const data = { 
-            importo: amount, 
-            data: date, 
-            categoria: formattedCategory, 
-            userId: currentUser.uid, 
-            owner: ownerName,
-            utente: isElena ? "Elena" : "Paolo",
-            timestamp: new Date() 
-        };
-
-        if (id) {
-            await updateDoc(doc(db, "spese", id), data);
-        } else {
-            await addDoc(collection(db, "spese"), data);
-        }
-
-        resetForm();
-        await loadExpenses();
+        await saveExpenseRecord({
+            id,
+            amount: amountInput,
+            date,
+            rawCategory
+        });
     });
 }
 
@@ -617,6 +777,7 @@ window.deleteExpense = async (id) => {
     if (confirm("Vuoi cancellare questa spesa?")) {
         await deleteDoc(doc(db, "spese", id));
         await loadExpenses();
+        refreshStoricoFrame();
     }
 };
 
