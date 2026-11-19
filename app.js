@@ -345,15 +345,16 @@ async function loadExpenses() {
         const querySnapshot = await getDocs(q);
         expenses = [];
         const elenaLogged = isUserElena(currentUser);
+        const expectedOwner = elenaLogged ? "elena" : "paolo";
 
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const expUserId = data.userId || "";
-            const expOwner = data.owner || (expUserId === currentUser?.uid && elenaLogged ? "elena" : "paolo");
+            const expOwner = (data.owner || (expUserId === currentUser?.uid && elenaLogged ? "elena" : "paolo")).toLowerCase();
             
-            const belongsToUser = (expUserId === currentUser.uid) || (!elenaLogged && expUserId === "");
+            const belongsToUser = (expUserId === currentUser.uid) || (expOwner === expectedOwner) || (!elenaLogged && expUserId === "" && !data.owner);
 
-            if (belongsToUser || data.userId) {
+            if (belongsToUser) {
                 expenses.push({ 
                     id: docSnap.id, 
                     amount: parseFloat((data.importo || data.amount || 0).toString().replace(',', '.')) || 0,
@@ -506,13 +507,20 @@ function calculateDashboard() {
 
     const lastSalaryDate = new Date(nextSalary);
     lastSalaryDate.setMonth(lastSalaryDate.getMonth() - 1);
+    lastSalaryDate.setHours(0,0,0,0);
+
+    const startOfCurrentMonth = new Date(year, parseInt(month) - 1, 1);
+    startOfCurrentMonth.setHours(0,0,0,0);
+
+    const effectiveStartDate = lastSalaryDate < startOfCurrentMonth ? lastSalaryDate : startOfCurrentMonth;
 
     const currentPeriodExpenses = expenses.filter(e => {
         if (!e.date) return false;
         const p = e.date.split('-');
+        if (p.length !== 3) return false;
         const expDate = new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
         expDate.setHours(0,0,0,0);
-        return expDate >= lastSalaryDate && expDate <= todayDateObj;
+        return expDate >= effectiveStartDate && expDate <= todayDateObj;
     }).reduce((sum, e) => sum + e.amount, 0);
 
     const totalIncome = (salaryData.base || 0) + (salaryData.extra || 0);
