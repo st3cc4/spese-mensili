@@ -1,325 +1,120 @@
-import { 
-    auth, db, onAuthStateChanged, signOut, 
-    collection, getDocs, doc, deleteDoc 
-} from "../firebase-config.js";
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storico Spese</title>
+    <link rel="stylesheet" href="stile-storico.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+</head>
+<body>
 
-let allExpenses = [];
-let currentUser = null;
-let lastInitializedUserUid = null;
+    <header style="display: flex; justify-content: space-between; align-items: center; max-width: 600px; margin: 0 auto 20px auto; padding: 0 15px;">
+        <h1 style="margin: 0; color: #3b5998; font-size: 22px;">Storico</h1>
+        <button id="logout-btn-storico" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">Esci</button>
+    </header>
 
-window.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'REFRESH_STORICO') {
-        loadStoricoData();
-    }
-});
-
-window.refreshStoricoData = function() {
-    loadStoricoData();
-};
-
-document.addEventListener('DOMContentLoaded', () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-
-    const filterType = document.getElementById('filter-type');
-    if (filterType) {
-        filterType.value = 'day';
-    }
-
-    const dayInput = document.getElementById('select-day');
-    if (dayInput) {
-        dayInput.value = `${year}-${month}-${day}`;
-    }
-
-    const monthInput = document.getElementById('select-month');
-    if (monthInput) {
-        monthInput.value = `${year}-${month}`;
-    }
-
-    const yearSelect = document.getElementById('select-year');
-    if (yearSelect) {
-        yearSelect.innerHTML = '';
-        for (let y = year; y >= 2024; y--) {
-            const opt = document.createElement('option');
-            opt.value = y;
-            opt.textContent = y;
-            if (y === year) opt.selected = true;
-            yearSelect.appendChild(opt);
-        }
-    }
-
-    if (typeof flatpickr !== 'undefined') {
-        flatpickr("#date-range-picker", {
-            mode: "range",
-            dateFormat: "Y-m-d",
-            locale: "it",
-            onChange: function(selectedDates) {
-                if (selectedDates.length === 2) {
-                    applyFilters();
-                }
-            }
-        });
-    }
-
-    updateFilterVisibility();
-
-    if (filterType) {
-        filterType.addEventListener('change', () => {
-            updateFilterVisibility();
-            applyFilters();
-        });
-    }
-
-    const inputsToWatch = [
-        'search-input', 'filter-type', 'select-day', 'select-month', 
-        'select-week', 'select-year', 'chk-user1', 'chk-user2'
-    ];
-    
-    inputsToWatch.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('input', applyFilters);
-            el.addEventListener('change', applyFilters);
-        }
-    });
-
-    const logoutBtnStorico = document.getElementById('logout-btn-storico');
-    if (logoutBtnStorico) {
-        logoutBtnStorico.addEventListener('click', async () => {
-            try {
-                window.parent.postMessage({ type: 'LOGOUT_FROM_HISTORY' }, '*');
-                await signOut(auth);
-            } catch (e) {
-                console.error("Errore durante il logout:", e);
-            }
-        });
-    }
-});
-
-function updateFilterVisibility() {
-    const type = document.getElementById('filter-type').value;
-    
-    document.getElementById('selector-day-container').classList.add('hidden');
-    document.getElementById('selector-week-container').classList.add('hidden');
-    document.getElementById('selector-month-container').classList.add('hidden');
-    document.getElementById('selector-year-container').classList.add('hidden');
-    document.getElementById('custom-date-container').classList.add('hidden');
-
-    if (type === 'day') {
-        document.getElementById('selector-day-container').classList.remove('hidden');
-    } else if (type === 'week') {
-        document.getElementById('selector-week-container').classList.remove('hidden');
-    } else if (type === 'month') {
-        document.getElementById('selector-month-container').classList.remove('hidden');
-    } else if (type === 'year') {
-        document.getElementById('selector-year-container').classList.remove('hidden');
-    } else if (type === 'custom') {
-        document.getElementById('custom-date-container').classList.remove('hidden');
-    }
-}
-
-function isUserElenaByEmail(email) {
-    if (!email) return false;
-    return email.toLowerCase().includes("ele");
-}
-
-function resolveExpenseOwner(data, user) {
-    const rawOwner = (data.owner || data.utente || data.nome || data.account || data.user || "").toString().toLowerCase().trim();
-    if (rawOwner.includes("ele")) return "elena";
-    if (rawOwner.includes("pao")) return "paolo";
-
-    const expUserId = data.userId || "";
-    if (user && expUserId === user.uid) {
-        return isUserElenaByEmail(user.email) ? "elena" : "paolo";
-    }
-
-    return "paolo";
-}
-
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        currentUser = user;
-        const chk1 = document.getElementById('chk-user1'); // Paolo
-        const chk2 = document.getElementById('chk-user2'); // Elena
-        
-        if (chk1 && chk2 && lastInitializedUserUid !== user.uid) {
-            const isElena = isUserElenaByEmail(user.email);
-            chk1.checked = !isElena;
-            chk2.checked = isElena;
-            lastInitializedUserUid = user.uid;
-        }
-        await loadStoricoData();
-    } else {
-        currentUser = null;
-        lastInitializedUserUid = null;
-        allExpenses = [];
-        applyFilters();
-    }
-});
-
-async function loadStoricoData() {
-    try {
-        const querySnapshot = await getDocs(collection(db, "spese"));
-        allExpenses = [];
-
-        querySnapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            const expUserId = data.userId || "";
-            const owner = resolveExpenseOwner(data, currentUser);
-
-            allExpenses.push({ 
-                id: docSnap.id, 
-                amount: parseFloat((data.importo || data.amount || 0).toString().replace(',', '.')) || 0,
-                date: data.data || data.date || "",
-                category: data.categoria || data.category || "Altro",
-                userId: expUserId,
-                owner: owner
-            });
-        });
-
-        applyFilters();
-    } catch (e) {
-        console.error("Errore caricamento dati storico:", e);
-    }
-}
-
-function applyFilters() {
-    const showPaolo = document.getElementById('chk-user1').checked;
-    const showElena = document.getElementById('chk-user2').checked;
-    const filterType = document.getElementById('filter-type').value;
-    const searchText = (document.getElementById('search-input').value || "").toLowerCase().trim();
-
-    let filtered = allExpenses.filter(exp => {
-        const matchesAccount = (exp.owner === 'elena' && showElena) || (exp.owner !== 'elena' && showPaolo);
-        if (!matchesAccount) return false;
-
-        if (searchText) {
-            const matchCat = exp.category.toLowerCase().includes(searchText);
-            const matchAmount = exp.amount.toString().includes(searchText);
-            const matchDate = exp.date.includes(searchText);
-            if (!matchCat && !matchAmount && !matchDate) return false;
-        }
-        return true;
-    });
-
-    filtered = filtered.filter(exp => {
-        if (!exp.date) return false;
-        const parts = exp.date.split('-');
-        if (parts.length !== 3) return false;
-        const expDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-
-        if (filterType === 'day') {
-            const dayVal = document.getElementById('select-day').value;
-            return exp.date === dayVal;
-        } else if (filterType === 'month') {
-            const monthVal = document.getElementById('select-month').value;
-            if (!monthVal) return true;
-            const [selYear, selMonth] = monthVal.split('-');
-            return parts[0] === selYear && parts[1] === selMonth;
-        } else if (filterType === 'year') {
-            const yearVal = document.getElementById('select-year').value;
-            return parts[0] === yearVal;
-        } else if (filterType === 'custom') {
-            const rangePicker = document.getElementById('date-range-picker');
-            if (rangePicker && rangePicker._flatpickr) {
-                const dates = rangePicker._flatpickr.selectedDates;
-                if (dates.length === 2) {
-                    const start = new Date(dates[0]);
-                    start.setHours(0,0,0,0);
-                    const end = new Date(dates[1]);
-                    end.setHours(23,59,59,999);
-                    return expDate >= start && expDate <= end;
-                }
-            }
-        }
-        return true;
-    });
-
-    const totalExpenses = filtered.reduce((sum, e) => sum + e.amount, 0);
-    let totalIncome = 0;
-    if (showPaolo) totalIncome += 1500;
-    if (showElena) totalIncome += 1500;
-
-    const balance = totalIncome - totalExpenses;
-
-    document.getElementById('filter-total-val').innerText = `€ ${totalExpenses.toFixed(2)}`;
-    document.getElementById('filter-income-val').innerText = `€ ${totalIncome.toFixed(2)}`;
-    
-    const balanceEl = document.getElementById('filter-balance');
-    balanceEl.innerText = `€ ${balance.toFixed(2)}`;
-    balanceEl.style.color = balance >= 0 ? '#28a745' : '#dc3545';
-
-    const categoryMap = {};
-    filtered.forEach(exp => {
-        categoryMap[exp.category] = (categoryMap[exp.category] || 0) + exp.amount;
-    });
-
-    const categoryListEl = document.getElementById('category-totals-list');
-    categoryListEl.innerHTML = '';
-    
-    const sortedCategories = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]);
-    if (sortedCategories.length === 0) {
-        categoryListEl.innerHTML = '<div style="font-size: 13px; color: #888; padding: 5px;">Nessuna spesa trovata per i filtri selezionati.</div>';
-    } else {
-        sortedCategories.forEach(([cat, amount]) => {
-            categoryListEl.innerHTML += `
-                <div class="metric-box-row" style="padding: 6px 10px; margin-bottom: 4px; background: #fff; border: 1px solid #ddd; border-radius: 4px;">
-                    <span style="font-size: 13px; font-weight: 500;">${cat}</span>
-                    <strong style="font-size: 13px;">€ ${amount.toFixed(2)}</strong>
-                </div>
-            `;
-        });
-    }
-
-    const expensesListEl = document.getElementById('filtered-expenses-list');
-    expensesListEl.innerHTML = '';
-
-    if (filtered.length === 0) {
-        expensesListEl.innerHTML = '<div style="font-size: 13px; color: #888; text-align: center; padding: 10px;">Nessun movimento trovato.</div>';
-        return;
-    }
-
-    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    filtered.forEach(exp => {
-        const parts = exp.date.split('-');
-        const dateEu = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : exp.date;
-        
-        expensesListEl.innerHTML += `
-            <div class="expense-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-bottom: 1px solid #eee;">
-                <div class="item-info">
-                    <span class="item-title" style="font-weight: bold; font-size: 14px; display: block;">${exp.category}</span>
-                    <span class="item-sub" style="font-size: 12px; color: #666;">${dateEu} (${exp.owner.toUpperCase()})</span>
-                </div>
-                <div class="item-actions" style="display: flex; align-items: center; gap: 6px;">
-                    <strong style="margin-right:6px; font-size: 14px; color: #dc3545;">€ ${exp.amount.toFixed(2)}</strong>
-                    <button class="btn-edit" onclick="window.editExpenseFromHistory('${exp.id}', ${exp.amount}, '${exp.date}', '${exp.category}')" style="background: #ffc107; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer;">✏️</button>
-                    <button class="btn-danger" onclick="window.deleteExpenseFromHistory('${exp.id}')" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer;">🗑️</button>
+    <div class="container">
+        <!-- Cerca Spesa -->
+        <div class="card">
+            <h3>Cerca spesa</h3>
+            <div class="filter-group-horizontal" style="margin-bottom: 0; position: relative;">
+                <label>Filtra testo</label>
+                <div style="flex: 1; position: relative;">
+                    <input type="text" id="search-input" autocomplete="off" placeholder="Es. Benzina o 11.00" class="bold-input">
+                    <div id="search-dropdown" class="hidden"></div>
                 </div>
             </div>
-        `;
-    });
-}
+        </div>
 
-window.editExpenseFromHistory = function(id, amount, date, category) {
-    localStorage.setItem('edit_id', id);
-    localStorage.setItem('edit_amount', amount);
-    localStorage.setItem('edit_date', date);
-    localStorage.setItem('edit_category', category);
+        <!-- Seleziona Periodo -->
+        <div class="card">
+            <h3>Seleziona periodo</h3>
+            
+            <div class="account-filter-container">
+                <label style="font-size: 14px; color: #3b5998; font-weight: bold; margin-bottom: 0;">Account:</label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="chk-user1"> Paolo
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="chk-user2"> Elena
+                </label>
+            </div>
 
-    window.parent.postMessage({ type: 'EDIT_EXPENSE_FROM_HISTORY', id }, '*');
-};
+            <div class="filter-group-horizontal">
+                <label>Tipo di filtro</label>
+                <select id="filter-type" class="bold-input">
+                    <option value="day" selected>Giorno</option>
+                    <option value="week">Settimana</option>
+                    <option value="month">Mese</option>
+                    <option value="year">Anno</option>
+                    <option value="custom">Personalizzato</option>
+                </select>
+            </div>
 
-window.deleteExpenseFromHistory = async function(id) {
-    if (confirm("Vuoi cancellare questa spesa?")) {
-        try {
-            await deleteDoc(doc(db, "spese", id));
-            await loadStoricoData();
-        } catch (e) {
-            console.error("Errore durante la cancellazione:", e);
-            alert("Errore durante la cancellazione della spesa.");
-        }
-    }
-};
+            <div id="selector-day-container" class="filter-group-horizontal">
+                <label>Giorno</label>
+                <input type="date" id="select-day" class="bold-input">
+            </div>
+
+            <div id="selector-month-container" class="filter-group-horizontal hidden">
+                <label>Mese</label>
+                <input type="month" id="select-month" class="bold-input">
+            </div>
+
+            <div id="selector-week-container" class="filter-group-horizontal hidden">
+                <label>Settimana</label>
+                <input type="week" id="select-week" class="bold-input">
+            </div>
+
+            <div id="selector-year-container" class="filter-group-horizontal hidden">
+                <label>Anno</label>
+                <select id="select-year" class="bold-input"></select>
+            </div>
+
+            <div id="custom-date-container" class="filter-group-horizontal hidden">
+                <label>Intervallo</label>
+                <input type="text" id="date-range-picker" placeholder="Inizio -> Fine" class="bold-input">
+            </div>
+        </div>
+
+        <!-- Risultati Periodo & Bilancio -->
+        <div class="card">
+            <h3>Risultati periodo</h3>
+            
+            <div class="metric-grid" style="margin-bottom: 10px;">
+                <div class="metric-box-row">
+                    <span class="metric-label">Entrate</span>
+                    <strong id="filter-income-val" class="income-amount">€ 0.00</strong>
+                </div>
+                <div class="metric-box-row">
+                    <span class="metric-label">Uscite</span>
+                    <strong id="filter-total-val" class="expense-amount">€ 0.00</strong>
+                </div>
+            </div>
+
+            <!-- Bilancio -->
+            <div class="metric-box-row" style="margin-bottom: 16px; background-color: #e9ecef; padding: 12px 10px;">
+                <span class="metric-label" style="font-size: 14px;">Bilancio</span>
+                <strong id="filter-balance" style="font-size: 20px; white-space: nowrap;">€ 0.00</strong>
+            </div>
+
+            <h3>Totali per categoria</h3>
+            <div id="category-totals-list" style="margin-top: 8px;"></div>
+        </div>
+
+        <!-- Dettaglio Spese -->
+        <div class="card">
+            <h3>Dettaglio spese</h3>
+            <div id="filtered-expenses-list"></div>
+        </div>
+
+        <!-- Firma personalizzata -->
+        <div style="text-align: right; font-weight: bold; font-style: italic; color: #0000ff; font-size: 15px; margin-top: 15px; margin-bottom: 10px;">Stecca</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/it.js"></script>
+    <script type="module" src="storico.js"></script>
+</body>
+</html>
