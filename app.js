@@ -23,6 +23,19 @@ function isUserElena(user) {
     return user.email.toLowerCase().includes("ele");
 }
 
+function resolveExpenseOwner(data, user) {
+    const rawOwner = (data.owner || data.utente || data.nome || data.account || data.user || "").toString().toLowerCase().trim();
+    if (rawOwner.includes("ele")) return "elena";
+    if (rawOwner.includes("pao")) return "paolo";
+
+    const expUserId = data.userId || "";
+    if (user && expUserId === user.uid) {
+        return isUserElena(user) ? "elena" : "paolo";
+    }
+
+    return "paolo";
+}
+
 function getCategoryFieldKey() {
     return isUserElena(currentUser) ? "categorie_elena" : "categorie_paolo";
 }
@@ -350,9 +363,9 @@ async function loadExpenses() {
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const expUserId = data.userId || "";
-            const expOwner = (data.owner || (expUserId === currentUser?.uid && elenaLogged ? "elena" : "paolo")).toLowerCase();
+            const expOwner = resolveExpenseOwner(data, currentUser);
             
-            const belongsToUser = (expUserId === currentUser.uid) || (expOwner === expectedOwner) || (!elenaLogged && expUserId === "" && !data.owner);
+            const belongsToUser = (expOwner === expectedOwner) || (expUserId === currentUser.uid);
 
             if (belongsToUser) {
                 expenses.push({ 
@@ -426,12 +439,14 @@ if (expenseForm) {
         }
 
         const isElena = isUserElena(currentUser);
+        const ownerName = isElena ? "elena" : "paolo";
         const data = { 
             importo: amount, 
             data: date, 
             categoria: formattedCategory, 
             userId: currentUser.uid, 
-            owner: isElena ? "elena" : "paolo",
+            owner: ownerName,
+            utente: isElena ? "Elena" : "Paolo",
             timestamp: new Date() 
         };
 
