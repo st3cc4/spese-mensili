@@ -9,11 +9,31 @@ let categories = [];
 let expenses = [];
 let salaryData = { nextDate: "", base: 0, extra: 0, extraExpression: "" };
 
+const PAOLO_2026_SALARIES = {
+    "2026-01": { stipendio: 1733.19, extra: 112, extraExpression: "112" },
+    "2026-02": { stipendio: 1895.23, extra: 136, extraExpression: "136" },
+    "2026-03": { stipendio: 1163.78, extra: 8, extraExpression: "8" },
+    "2026-04": { stipendio: 1327.81, extra: 16, extraExpression: "16" },
+    "2026-05": { stipendio: 1562.19, extra: 72, extraExpression: "72" },
+    "2026-06": { stipendio: 1149.45, extra: 0, extraExpression: "0" },
+    "2026-07": { stipendio: 2864.79, extra: 0, extraExpression: "0" },
+    "2026-08": { stipendio: 1369.93, extra: 30, extraExpression: "30" },
+    "2026-09": { stipendio: 1512.63, extra: 90, extraExpression: "90" },
+    "2026-10": { stipendio: 1415.57, extra: 20, extraExpression: "20" },
+    "2026-11": { stipendio: 1473.15, extra: 60, extraExpression: "60" },
+    "2026-12": { stipendio: 0, extra: 0, extraExpression: "0" }
+};
+
+const ELENA_2026_SALARIES = {
+    "2026-11": { stipendio: 1048.71, extra: 0, extraExpression: "0" }
+};
+
 const todayLocal = new Date();
 const year = todayLocal.getFullYear();
 const month = String(todayLocal.getMonth() + 1).padStart(2, '0');
 const day = String(todayLocal.getDate()).padStart(2, '0');
 const todayStr = `${year}-${month}-${day}`;
+const currentYearMonth = `${year}-${month}`;
 
 const expenseDateEl = document.getElementById('expense-date');
 if (expenseDateEl) expenseDateEl.value = todayStr;
@@ -40,6 +60,17 @@ function getCategoryFieldKey() {
     return isUserElena(currentUser) ? "categorie_elena" : "categorie_paolo";
 }
 
+function notifyStoricoActiveUser() {
+    const frame = document.getElementById('storico-frame');
+    if (frame && frame.contentWindow && currentUser) {
+        frame.contentWindow.postMessage({
+            type: 'SET_ACTIVE_USER',
+            email: currentUser.email || "",
+            uid: currentUser.uid || ""
+        }, '*');
+    }
+}
+
 function showDashboardView() {
     document.getElementById('view-dashboard').classList.remove('hidden');
     document.getElementById('view-storico').classList.add('hidden');
@@ -61,6 +92,8 @@ function showStoricoView() {
     const btnStorico = document.getElementById('nav-btn-storico');
     btnDash.style.color = '#666';
     btnStorico.style.color = '#3b5998';
+
+    notifyStoricoActiveUser();
 
     const frame = document.getElementById('storico-frame');
     if (frame && frame.contentWindow && typeof frame.contentWindow.refreshStoricoData === 'function') {
@@ -107,6 +140,7 @@ onAuthStateChanged(auth, async (user) => {
         currentUser = user;
         if (authScreen) authScreen.classList.add('hidden');
         if (appScreen) appScreen.classList.remove('hidden');
+        notifyStoricoActiveUser();
         await loadUserData();
         checkPendingEditFromStorage();
     } else {
@@ -141,6 +175,45 @@ if (logoutBtn) {
     logoutBtn.addEventListener('click', () => signOut(auth));
 }
 
+async function seedDefaultMonthlySalariesIfNeeded(userDocRef, existingData) {
+    const elena = isUserElena(currentUser);
+    const defaults = elena ? ELENA_2026_SALARIES : PAOLO_2026_SALARIES;
+    const existingMonthly = existingData.entrateMensili || {};
+
+    let updated = false;
+    const mergedMonthly = { ...existingMonthly };
+
+    for (const [ym, entry] of Object.entries(defaults)) {
+        if (!mergedMonthly[ym]) {
+            const tot = (parseFloat(entry.stipendio) || 0) + (parseFloat(entry.extra) || 0);
+            mergedMonthly[ym] = {
+                stipendio: entry.stipendio,
+                extra: entry.extra,
+                extraExpression: entry.extraExpression || String(entry.extra || 0),
+                totale: tot
+            };
+            updated = true;
+        }
+    }
+
+    const activeMonthData = mergedMonthly[currentYearMonth];
+    const updatePayload = { ...existingData, entrateMensili: mergedMonthly };
+
+    if (activeMonthData && (existingData.stipendio === undefined || existingData.stipendio === "" || existingData.stipendio === 0)) {
+        updatePayload.stipendio = activeMonthData.stipendio;
+        updatePayload.extra = activeMonthData.extra;
+        updatePayload.extraExpression = activeMonthData.extraExpression;
+        updated = true;
+    }
+
+    if (updated || !existingData.entrateMensili) {
+        await setDoc(userDocRef, updatePayload);
+        return updatePayload;
+    }
+
+    return existingData;
+}
+
 async function loadUserData() {
     await loadSalaryAndCategories();
     await loadExpenses();
@@ -163,28 +236,40 @@ async function loadSalaryAndCategories() {
         const catKey = getCategoryFieldKey();
         const legacyCatKey = "categorie";
 
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            salaryData.nextDate = data.dataProssimoStipendio || "";
-            salaryData.base = parseFloat((data.stipendio || 0).toString().replace(',', '.')) || 0;
-            salaryData.extra = parseFloat((data.extra || 0).toString().replace(',', '.')) || 0;
-            salaryData.extraExpression = data.extraExpression || (data.extra !== undefined ? data.extra.toString() : "0");
+        let rawData = docSnap.exists() ? docSnap.data() : {};
+        rawData = await seedDefaultMonthlySalariesIfNeeded(userDocRef, rawData);
 
-            const salaryDateInput = document.getElementById('salary-date');
-            const modalSalaryBase = document.getElementById('modal-salary-base');
-            const modalSalaryExtra = document.getElementById('modal-salary-extra');
+        salaryData.nextDate = rawData.dataProssimoStipendio || "";
+        const monthEntry = rawData.entrateMensili && rawData.entrateMensili[currentYearMonth];
 
-            if (salaryDateInput) salaryDateInput.value = salaryData.nextDate;
-            if (modalSalaryBase) modalSalaryBase.value = data.stipendio || "";
-            if (modalSalaryExtra) modalSalaryExtra.value = data.extraExpression;
+        const baseVal = monthEntry !== undefined
+            ? parseFloat((monthEntry.stipendio || 0).toString().replace(',', '.')) || 0
+            : parseFloat((rawData.stipendio || 0).toString().replace(',', '.')) || 0;
 
-            let rawCategories = data[catKey] || data[legacyCatKey] || [];
-            let normalizedSet = new Set(rawCategories.map(c => formatCategoryName(c)));
-            categories = Array.from(normalizedSet).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
-        } else {
-            salaryData = { nextDate: "", base: 0, extra: 0, extraExpression: "" };
-            categories = [];
-        }
+        const extraVal = monthEntry !== undefined
+            ? parseFloat((monthEntry.extra || 0).toString().replace(',', '.')) || 0
+            : parseFloat((rawData.extra || 0).toString().replace(',', '.')) || 0;
+
+        const extraExpr = monthEntry !== undefined
+            ? (monthEntry.extraExpression || String(extraVal))
+            : (rawData.extraExpression || (rawData.extra !== undefined ? rawData.extra.toString() : "0"));
+
+        salaryData.base = baseVal;
+        salaryData.extra = extraVal;
+        salaryData.extraExpression = extraExpr;
+
+        const salaryDateInput = document.getElementById('salary-date');
+        const modalSalaryBase = document.getElementById('modal-salary-base');
+        const modalSalaryExtra = document.getElementById('modal-salary-extra');
+
+        if (salaryDateInput) salaryDateInput.value = salaryData.nextDate;
+        if (modalSalaryBase) modalSalaryBase.value = baseVal || "";
+        if (modalSalaryExtra) modalSalaryExtra.value = extraExpr;
+
+        let rawCategories = rawData[catKey] || rawData[legacyCatKey] || [];
+        let normalizedSet = new Set(rawCategories.map(c => formatCategoryName(c)));
+        categories = Array.from(normalizedSet).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base' }));
+
         setupCategoryAutocomplete();
     } catch (e) {
         console.error("Errore caricamento impostazioni:", e);
@@ -243,13 +328,22 @@ if (saveSalaryModalBtn) {
         const docSnap = await getDoc(docRef);
         let currentData = docSnap.exists() ? docSnap.data() : {};
         
-        currentData.stipendio = document.getElementById('modal-salary-base').value.trim();
+        const monthlyMap = currentData.entrateMensili || {};
+        monthlyMap[currentYearMonth] = {
+            stipendio: base,
+            extra: evaluatedExtra,
+            extraExpression: extraInput,
+            totale: base + evaluatedExtra
+        };
+
+        currentData.stipendio = base;
         currentData.extra = evaluatedExtra;
         currentData.extraExpression = extraInput;
+        currentData.entrateMensili = monthlyMap;
 
         await setDoc(docRef, currentData);
         salaryModal.classList.add('hidden');
-        alert("Dati stipendio ed extra salvati!");
+        alert(`Dati stipendio ed extra per ${currentYearMonth} salvati!`);
         calculateDashboard();
     });
 }
