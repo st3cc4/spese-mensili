@@ -9,7 +9,7 @@ let categories = [];
 let expenses = [];
 let salaryData = { nextDate: "", base: 0, extra: 0, extraExpression: "" };
 
-const PAOLO_2026_SALARIES = {
+const PAOLO_INITIAL_2026 = {
     "2026-01": { stipendio: 1733.19, extra: 112, extraExpression: "112" },
     "2026-02": { stipendio: 1895.23, extra: 136, extraExpression: "136" },
     "2026-03": { stipendio: 1163.78, extra: 8, extraExpression: "8" },
@@ -24,7 +24,7 @@ const PAOLO_2026_SALARIES = {
     "2026-12": { stipendio: 0, extra: 0, extraExpression: "0" }
 };
 
-const ELENA_2026_SALARIES = {
+const ELENA_INITIAL_2026 = {
     "2026-11": { stipendio: 1048.71, extra: 0, extraExpression: "0" }
 };
 
@@ -44,12 +44,21 @@ function isUserElena(user) {
 }
 
 function resolveExpenseOwner(data, user) {
-    const rawOwner = (data.owner || data.utente || data.nome || data.account || data.user || "").toString().toLowerCase().trim();
-    if (rawOwner.includes("ele")) return "elena";
-    if (rawOwner.includes("pao")) return "paolo";
+    const possibleFields = [
+        data.owner, data.utente, data.nome, data.account, data.user,
+        data.userEmail, data.email, data.autore, data.creatoDa
+    ];
 
-    const expUserId = data.userId || "";
-    if (user && expUserId === user.uid) {
+    for (const val of possibleFields) {
+        if (typeof val === "string") {
+            const lower = val.toLowerCase().trim();
+            if (lower.includes("ele")) return "elena";
+            if (lower.includes("pao")) return "paolo";
+        }
+    }
+
+    const expUserId = (data.userId || "").toString().trim();
+    if (user && expUserId && expUserId === user.uid) {
         return isUserElena(user) ? "elena" : "paolo";
     }
 
@@ -175,40 +184,52 @@ if (logoutBtn) {
     logoutBtn.addEventListener('click', () => signOut(auth));
 }
 
-async function seedDefaultMonthlySalariesIfNeeded(userDocRef, existingData) {
+async function ensureFirestoreMonthlySeed(userDocRef, existingData) {
     const elena = isUserElena(currentUser);
-    const defaults = elena ? ELENA_2026_SALARIES : PAOLO_2026_SALARIES;
-    const existingMonthly = existingData.entrateMensili || {};
+    const ownerRole = elena ? "elena" : "paolo";
+    const initialMap = elena ? ELENA_INITIAL_2026 : PAOLO_INITIAL_2026;
+    const existingMonthly = (existingData.entrateMensili && typeof existingData.entrateMensili === "object")
+        ? existingData.entrateMensili
+        : {};
 
-    let updated = false;
+    let changed = false;
     const mergedMonthly = { ...existingMonthly };
 
-    for (const [ym, entry] of Object.entries(defaults)) {
-        if (!mergedMonthly[ym]) {
-            const tot = (parseFloat(entry.stipendio) || 0) + (parseFloat(entry.extra) || 0);
-            mergedMonthly[ym] = {
-                stipendio: entry.stipendio,
-                extra: entry.extra,
-                extraExpression: entry.extraExpression || String(entry.extra || 0),
-                totale: tot
-            };
-            updated = true;
+    if (!existingData.seed2026Completed) {
+        for (const [ym, entry] of Object.entries(initialMap)) {
+            if (!mergedMonthly[ym]) {
+                const stip = parseFloat(entry.stipendio) || 0;
+                const ext = parseFloat(entry.extra) || 0;
+                mergedMonthly[ym] = {
+                    stipendio: stip,
+                    extra: ext,
+                    extraExpression: entry.extraExpression || String(ext),
+                    totale: stip + ext
+                };
+                changed = true;
+            }
         }
     }
 
     const activeMonthData = mergedMonthly[currentYearMonth];
-    const updatePayload = { ...existingData, entrateMensili: mergedMonthly };
+    const updatedPayload = {
+        ...existingData,
+        owner: ownerRole,
+        email: currentUser?.email || existingData.email || "",
+        entrateMensili: mergedMonthly,
+        seed2026Completed: true
+    };
 
     if (activeMonthData && (existingData.stipendio === undefined || existingData.stipendio === "" || existingData.stipendio === 0)) {
-        updatePayload.stipendio = activeMonthData.stipendio;
-        updatePayload.extra = activeMonthData.extra;
-        updatePayload.extraExpression = activeMonthData.extraExpression;
-        updated = true;
+        updatedPayload.stipendio = activeMonthData.stipendio;
+        updatedPayload.extra = activeMonthData.extra;
+        updatedPayload.extraExpression = activeMonthData.extraExpression;
+        changed = true;
     }
 
-    if (updated || !existingData.entrateMensili) {
-        await setDoc(userDocRef, updatePayload);
-        return updatePayload;
+    if (changed || !existingData.entrateMensili || !existingData.seed2026Completed) {
+        await setDoc(userDocRef, updatedPayload);
+        return updatedPayload;
     }
 
     return existingData;
@@ -237,7 +258,7 @@ async function loadSalaryAndCategories() {
         const legacyCatKey = "categorie";
 
         let rawData = docSnap.exists() ? docSnap.data() : {};
-        rawData = await seedDefaultMonthlySalariesIfNeeded(userDocRef, rawData);
+        rawData = await ensureFirestoreMonthlySeed(userDocRef, rawData);
 
         salaryData.nextDate = rawData.dataProssimoStipendio || "";
         const monthEntry = rawData.entrateMensili && rawData.entrateMensili[currentYearMonth];
@@ -328,7 +349,10 @@ if (saveSalaryModalBtn) {
         const docSnap = await getDoc(docRef);
         let currentData = docSnap.exists() ? docSnap.data() : {};
         
-        const monthlyMap = currentData.entrateMensili || {};
+        const monthlyMap = (currentData.entrateMensili && typeof currentData.entrateMensili === "object")
+            ? { ...currentData.entrateMensili }
+            : {};
+
         monthlyMap[currentYearMonth] = {
             stipendio: base,
             extra: evaluatedExtra,
@@ -340,11 +364,18 @@ if (saveSalaryModalBtn) {
         currentData.extra = evaluatedExtra;
         currentData.extraExpression = extraInput;
         currentData.entrateMensili = monthlyMap;
+        currentData.owner = isUserElena(currentUser) ? "elena" : "paolo";
+        currentData.email = currentUser?.email || currentData.email || "";
 
         await setDoc(docRef, currentData);
         salaryModal.classList.add('hidden');
-        alert(`Dati stipendio ed extra per ${currentYearMonth} salvati!`);
+        alert(`Dati stipendio ed extra per ${currentYearMonth} salvati su Firestore!`);
         calculateDashboard();
+
+        const frame = document.getElementById('storico-frame');
+        if (frame && frame.contentWindow && typeof frame.contentWindow.refreshStoricoData === 'function') {
+            frame.contentWindow.refreshStoricoData();
+        }
     });
 }
 
