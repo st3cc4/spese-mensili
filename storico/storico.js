@@ -8,25 +8,10 @@ let currentUser = null;
 let currentUserEmail = "";
 let lastAppliedUserKey = null;
 
-// Mappe mensili 2026 per Paolo ed Elena (aggiornate automaticamente con quanto salvato su Firestore)
+// Caricate interamente da Firestore (collezione "config" -> campo "entrateMensili")
 let monthlyIncomeByOwner = {
-    paolo: {
-        "2026-01": 1845.19,
-        "2026-02": 2031.23,
-        "2026-03": 1171.78,
-        "2026-04": 1343.81,
-        "2026-05": 1634.19,
-        "2026-06": 1149.45,
-        "2026-07": 2864.79,
-        "2026-08": 1399.93,
-        "2026-09": 1602.63,
-        "2026-10": 1435.57,
-        "2026-11": 1533.15,
-        "2026-12": 0
-    },
-    elena: {
-        "2026-11": 1048.71
-    }
+    paolo: {},
+    elena: {}
 };
 
 function getIsoWeekString(dateObj) {
@@ -249,13 +234,13 @@ function normalizeDateString(rawDate) {
 }
 
 async function loadConfigSalaries() {
+    monthlyIncomeByOwner = { paolo: {}, elena: {} };
     try {
         const configSnap = await getDocs(collection(db, "config"));
         configSnap.forEach(docSnap => {
             const data = docSnap.data();
-            const docId = docSnap.id.toLowerCase();
-            const emailField = (data.email || "").toLowerCase();
-            const isElenaDoc = docId.includes("ele") || emailField.includes("ele") ||
+            const ownerField = (data.owner || data.utente || data.nome || data.email || "").toString().toLowerCase();
+            const isElenaDoc = ownerField.includes("ele") ||
                 (currentUser && isUserElenaByEmail(currentUser.email) && docSnap.id === currentUser.uid);
 
             const targetOwner = isElenaDoc ? "elena" : "paolo";
@@ -275,49 +260,10 @@ async function loadConfigSalaries() {
     }
 }
 
-function getIncomeForSelection(owner, filterType) {
+// Restituisce sempre il totale complessivo delle entrate salvate su Firestore per l'account selezionato
+function getTotalSavedIncomeForOwner(owner) {
     const map = monthlyIncomeByOwner[owner] || {};
-
-    if (filterType === 'month') {
-        const monthVal = document.getElementById('select-month').value;
-        return parseFloat(map[monthVal] || 0);
-    } else if (filterType === 'year') {
-        const yearVal = document.getElementById('select-year').value;
-        return Object.entries(map)
-            .filter(([ym]) => ym.startsWith(`${yearVal}-`))
-            .reduce((sum, [, val]) => sum + (parseFloat(val) || 0), 0);
-    } else if (filterType === 'day') {
-        const dayVal = document.getElementById('select-day').value || "";
-        const ym = dayVal.slice(0, 7);
-        return parseFloat(map[ym] || 0);
-    } else if (filterType === 'week') {
-        const weekVal = document.getElementById('select-week').value || "";
-        const ym = weekVal.slice(0, 7);
-        return parseFloat(map[ym] || 0);
-    } else if (filterType === 'custom') {
-        const rangePicker = document.getElementById('date-range-picker');
-        if (rangePicker && rangePicker._flatpickr && rangePicker._flatpickr.selectedDates.length === 2) {
-            const start = rangePicker._flatpickr.selectedDates[0];
-            const end = rangePicker._flatpickr.selectedDates[1];
-            const monthsInRange = new Set();
-            const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-            const limit = new Date(end.getFullYear(), end.getMonth(), 1);
-            while (cursor <= limit) {
-                const y = cursor.getFullYear();
-                const m = String(cursor.getMonth() + 1).padStart(2, '0');
-                monthsInRange.add(`${y}-${m}`);
-                cursor.setMonth(cursor.getMonth() + 1);
-            }
-            return Array.from(monthsInRange).reduce((sum, ym) => sum + (parseFloat(map[ym] || 0)), 0);
-        }
-        const now = new Date();
-        const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        return parseFloat(map[ym] || 0);
-    }
-
-    const now = new Date();
-    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    return parseFloat(map[ym] || 0);
+    return Object.values(map).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
 }
 
 async function loadStoricoData() {
@@ -409,8 +355,8 @@ function applyFilters() {
 
     const totalExpenses = filtered.reduce((sum, e) => sum + e.amount, 0);
     let totalIncome = 0;
-    if (showPaolo) totalIncome += getIncomeForSelection('paolo', filterType);
-    if (showElena) totalIncome += getIncomeForSelection('elena', filterType);
+    if (showPaolo) totalIncome += getTotalSavedIncomeForOwner('paolo');
+    if (showElena) totalIncome += getTotalSavedIncomeForOwner('elena');
 
     const balance = totalIncome - totalExpenses;
 
