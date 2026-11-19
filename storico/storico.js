@@ -23,7 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
 
-    // Imposta filtro predefinito su Giorno (data attuale)
     const filterType = document.getElementById('filter-type');
     if (filterType) {
         filterType.value = 'day';
@@ -126,13 +125,25 @@ function isUserElenaByEmail(email) {
     return email.toLowerCase().includes("ele");
 }
 
+function resolveExpenseOwner(data, user) {
+    const rawOwner = (data.owner || data.utente || data.nome || data.account || data.user || "").toString().toLowerCase().trim();
+    if (rawOwner.includes("ele")) return "elena";
+    if (rawOwner.includes("pao")) return "paolo";
+
+    const expUserId = data.userId || "";
+    if (user && expUserId === user.uid) {
+        return isUserElenaByEmail(user.email) ? "elena" : "paolo";
+    }
+
+    return "paolo";
+}
+
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
         const chk1 = document.getElementById('chk-user1'); // Paolo
         const chk2 = document.getElementById('chk-user2'); // Elena
         
-        // Imposta automaticamente il flag solo quando entra un nuovo utente o cambia sessione
         if (chk1 && chk2 && lastInitializedUserUid !== user.uid) {
             const isElena = isUserElenaByEmail(user.email);
             chk1.checked = !isElena;
@@ -156,15 +167,7 @@ async function loadStoricoData() {
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const expUserId = data.userId || "";
-            
-            let owner = "paolo";
-            if (data.owner) {
-                owner = data.owner.toLowerCase();
-            } else if (expUserId) {
-                if (expUserId === currentUser?.uid && isUserElenaByEmail(currentUser?.email)) {
-                    owner = "elena";
-                }
-            }
+            const owner = resolveExpenseOwner(data, currentUser);
 
             allExpenses.push({ 
                 id: docSnap.id, 
