@@ -5,15 +5,45 @@ import {
 
 let allExpenses = [];
 let currentUser = null;
-let lastInitializedUserUid = null;
+let currentUserEmail = "";
+let lastAppliedUserKey = null;
+
+function applyAccountCheckboxForUser(email, uid, force = false) {
+    const chk1 = document.getElementById('chk-user1'); // Paolo
+    const chk2 = document.getElementById('chk-user2'); // Elena
+    if (!chk1 || !chk2) return;
+
+    const cleanEmail = (email || "").toLowerCase().trim();
+    const key = `${uid || ""}|${cleanEmail}`;
+    if (!force && lastAppliedUserKey === key) return;
+
+    const isElena = cleanEmail.includes("ele");
+    chk1.checked = !isElena;
+    chk2.checked = isElena;
+    lastAppliedUserKey = key;
+}
 
 window.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'REFRESH_STORICO') {
+    if (!event.data) return;
+
+    if (event.data.type === 'SET_ACTIVE_USER') {
+        currentUserEmail = event.data.email || currentUserEmail;
+        applyAccountCheckboxForUser(currentUserEmail, event.data.uid || currentUser?.uid || "", false);
+        loadStoricoData();
+    } else if (event.data.type === 'REFRESH_STORICO') {
+        const emailToCheck = event.data.email || currentUser?.email || currentUserEmail;
+        if (emailToCheck && !lastAppliedUserKey) {
+            applyAccountCheckboxForUser(emailToCheck, currentUser?.uid || "", false);
+        }
         loadStoricoData();
     }
 });
 
 window.refreshStoricoData = function() {
+    const emailToCheck = currentUser?.email || currentUserEmail;
+    if (emailToCheck && !lastAppliedUserKey) {
+        applyAccountCheckboxForUser(emailToCheck, currentUser?.uid || "", false);
+    }
     loadStoricoData();
 };
 
@@ -125,39 +155,34 @@ function isUserElenaByEmail(email) {
     return email.toLowerCase().includes("ele");
 }
 
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        currentUser = user;
+        currentUserEmail = user.email || currentUserEmail;
+        applyAccountCheckboxForUser(currentUserEmail, user.uid, false);
+        await loadStoricoData();
+    } else {
+        currentUser = null;
+        currentUserEmail = "";
+        lastAppliedUserKey = null;
+        allExpenses = [];
+        applyFilters();
+    }
+});
+
 function resolveExpenseOwner(data, user) {
     const rawOwner = (data.owner || data.utente || data.nome || data.account || data.user || "").toString().toLowerCase().trim();
     if (rawOwner.includes("ele")) return "elena";
     if (rawOwner.includes("pao")) return "paolo";
 
     const expUserId = data.userId || "";
+    const emailToCheck = user?.email || currentUserEmail;
     if (user && expUserId === user.uid) {
-        return isUserElenaByEmail(user.email) ? "elena" : "paolo";
+        return isUserElenaByEmail(emailToCheck) ? "elena" : "paolo";
     }
 
     return "paolo";
 }
-
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        currentUser = user;
-        const chk1 = document.getElementById('chk-user1'); // Paolo
-        const chk2 = document.getElementById('chk-user2'); // Elena
-        
-        if (chk1 && chk2 && lastInitializedUserUid !== user.uid) {
-            const isElena = isUserElenaByEmail(user.email);
-            chk1.checked = !isElena;
-            chk2.checked = isElena;
-            lastInitializedUserUid = user.uid;
-        }
-        await loadStoricoData();
-    } else {
-        currentUser = null;
-        lastInitializedUserUid = null;
-        allExpenses = [];
-        applyFilters();
-    }
-});
 
 async function loadStoricoData() {
     try {
@@ -186,8 +211,10 @@ async function loadStoricoData() {
 }
 
 function applyFilters() {
-    const showPaolo = document.getElementById('chk-user1').checked;
-    const showElena = document.getElementById('chk-user2').checked;
+    const chk1 = document.getElementById('chk-user1');
+    const chk2 = document.getElementById('chk-user2');
+    const showPaolo = chk1 ? chk1.checked : false;
+    const showElena = chk2 ? chk2.checked : false;
     const filterType = document.getElementById('filter-type').value;
     const searchText = (document.getElementById('search-input').value || "").toLowerCase().trim();
 
