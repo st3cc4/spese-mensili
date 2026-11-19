@@ -5,6 +5,7 @@ import {
 
 let allExpenses = [];
 let currentUser = null;
+let lastInitializedUserUid = null;
 
 window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'REFRESH_STORICO') {
@@ -20,7 +21,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
-    
+    const day = String(now.getDate()).padStart(2, '0');
+
+    // Imposta filtro predefinito su Giorno (data attuale)
+    const filterType = document.getElementById('filter-type');
+    if (filterType) {
+        filterType.value = 'day';
+    }
+
+    const dayInput = document.getElementById('select-day');
+    if (dayInput) {
+        dayInput.value = `${year}-${month}-${day}`;
+    }
+
     const monthInput = document.getElementById('select-month');
     if (monthInput) {
         monthInput.value = `${year}-${month}`;
@@ -38,12 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    const dayInput = document.getElementById('select-day');
-    if (dayInput) {
-        const d = String(now.getDate()).padStart(2, '0');
-        dayInput.value = `${year}-${month}-${d}`;
-    }
-
     if (typeof flatpickr !== 'undefined') {
         flatpickr("#date-range-picker", {
             mode: "range",
@@ -57,7 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const filterType = document.getElementById('filter-type');
+    updateFilterVisibility();
+
     if (filterType) {
         filterType.addEventListener('change', () => {
             updateFilterVisibility();
@@ -121,17 +129,20 @@ function isUserElenaByEmail(email) {
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
-        const chk1 = document.getElementById('chk-user1');
-        const chk2 = document.getElementById('chk-user2');
+        const chk1 = document.getElementById('chk-user1'); // Paolo
+        const chk2 = document.getElementById('chk-user2'); // Elena
         
-        if (chk1 && chk2) {
+        // Imposta automaticamente il flag solo quando entra un nuovo utente o cambia sessione
+        if (chk1 && chk2 && lastInitializedUserUid !== user.uid) {
             const isElena = isUserElenaByEmail(user.email);
             chk1.checked = !isElena;
             chk2.checked = isElena;
+            lastInitializedUserUid = user.uid;
         }
         await loadStoricoData();
     } else {
         currentUser = null;
+        lastInitializedUserUid = null;
         allExpenses = [];
         applyFilters();
     }
